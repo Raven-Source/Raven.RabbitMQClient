@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>Raven.RabbitMQClient</id>
+        <version>1.0.0</version>
+        <authors>LiangYi</authors>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Raven.RabbitMQClient</description>
+        <dependencies>
+            <dependency id="Raven.Serializer" version="1.0.1" />
+            <dependency id="RabbitMQ.Client" version="3.6.0" />
+        </dependencies>
+    </metadata>
+    <files>
+        <file src="..\output\net45\Raven.RabbitMQClient\Raven.RabbitMQClient.dll" target="lib\net45\Raven.RabbitMQClient.dll" />
+        <file src="..\output\net45\Raven.RabbitMQClient\Raven.RabbitMQClient.pdb" target="lib\net45\Raven.RabbitMQClient.pdb" />
+        <file src="..\output\net45\Raven.RabbitMQClient\Raven.RabbitMQClient.xml" target="lib\net45\Raven.RabbitMQClient.xml" />
+    </files>
+</package>

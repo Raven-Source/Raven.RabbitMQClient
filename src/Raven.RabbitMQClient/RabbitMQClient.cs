@@ -3,12 +3,18 @@ using Raven.Serializer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RabbitMQ.Client.Framing;
+using RabbitMQ.Client.Events;
 
 namespace Raven.MessageQueue.WithRabbitMQ
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class RabbitMQClient
     {
         private IDataSerializer serializer;
@@ -23,13 +29,30 @@ namespace Raven.MessageQueue.WithRabbitMQ
             {
                 if (_connection == null)
                 {
-                    lock (objLock)
+                    try
                     {
+                        Monitor.Enter(objLock);
                         if (_connection == null)
                         {
                             _connection = CreateConnection();
                         }
                     }
+                    catch (Exception)
+                    {
+
+                    }
+                    finally
+                    {
+                        Monitor.Exit(objLock);
+                    }
+
+                    //lock (objLock)
+                    //{
+                    //    if (_connection == null)
+                    //    {
+                    //        _connection = CreateConnection();
+                    //    }
+                    //}
                 }
                 return _connection;
             }
@@ -46,6 +69,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         private int _maxQueueCount;
         private int waitMillisecondsTimeout;
 
+        private IBasicProperties propertiesEmpty = null;
 
         /// <summary>
         /// 构造函数
@@ -81,7 +105,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
             resetEvent = new AutoResetEvent(false);
 
             this.loger = loger;
-            this.waitMillisecondsTimeout = 30000;
+            this.waitMillisecondsTimeout = 10000;
 
             queueWorkThread = new Thread(QueueToWrite);
             queueWorkThread.IsBackground = true;
@@ -109,35 +133,148 @@ namespace Raven.MessageQueue.WithRabbitMQ
         }
 
         /// <summary>
-        /// 出对
+        /// 批量接收
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="queueName">队列名</param>
-        /// <param name="isDurable">是否持久化队列</param>
         /// <returns></returns>
-        public List<T> Dequeue<T>(string queueName, bool isDurable = false)
+        public List<T> ReceiveBatch<T>(string queueName, string exchangeName = null)
         {
             List<T> list = new List<T>();
+            List<BasicGetResult> resList = BasicDequeueBatch(exchangeName, queueName);
+            foreach (var res in resList)
+            {
+                try
+                {
+                    T obj = serializer.Deserialize<T>(res.Body);
+                    list.Add(obj);
+                }
+                catch (Exception ex)
+                {
+                    RecordException(ex, res.Body);
+                }
+            }
+
+            return list;
+        }
+
+        /// <summary>
+        /// 批量接收
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="queueName">队列名</param>
+        /// <returns></returns>
+        public T ReceiveSingle<T>(string queueName, string exchangeName = null)
+        {
+            T model = default(T);
+            BasicGetResult res = BasicDequeue(exchangeName, queueName);
+            if (res != null)
+            {
+                try
+                {
+                    model = serializer.Deserialize<T>(res.Body);
+                }
+                catch (Exception ex)
+                {
+                    RecordException(ex, res.Body);
+                }
+            }
+            return model;
+        }
+
+        /// <summary>
+        /// 异步入队
+        /// </summary>
+        /// <param name="queueName">队列名</param>
+        /// <param name="dataObj">入队数据</param>
+        /// <param name="persistent">数据是否持久化</param>
+        /// <param name="durableQueue">队列是否持久化</param>
+        public void Send(string queueName, object dataObj, bool persistent = false, bool durableQueue = false)
+        {
+            if (_queue.Count < _maxQueueCount)
+            {
+                var qm = new QueueMessage();
+                qm.exchangeName = "";
+                qm.queueName = queueName;
+                qm.data = dataObj;
+                qm.persistent = persistent;
+                qm.durableQueue = durableQueue;
+                qm.exchangeType = ExchangeType.Default;
+
+                _queue.Enqueue(qm);
+
+                resetEvent.Set();
+            }
+        }
+
+        public void Publish(string exchangeName, object dataObj)
+        {
+            if (_queue.Count < _maxQueueCount)
+            {
+                var qm = new QueueMessage();
+                qm.exchangeName = exchangeName;
+                qm.queueName = "";
+                qm.data = dataObj;
+                qm.persistent = false;
+                qm.durableQueue = false;
+                qm.exchangeType = ExchangeType.Fanout;
+
+                _queue.Enqueue(qm);
+
+                resetEvent.Set();
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="queueName"></param>
+        /// <param name="callback"></param>
+        public IModel Subscribe<T>(string exchangeName, Action<T> callback)
+        {
+            return BasicQueueBind(exchangeName, (o, res) =>
+            {
+                try
+                {
+                    var model = serializer.Deserialize<T>(res.Body);
+                    if (callback != null)
+                    {
+                        callback(model);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RecordException(ex, res.Body);
+                }
+            });
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="queueName"></param>
+        /// <param name="exchangeType"></param>
+        /// <returns></returns>
+        private List<BasicGetResult> BasicDequeueBatch(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default)
+        {
+            List<BasicGetResult> resList = new List<BasicGetResult>();
             try
             {
                 using (IModel channel = Connection.CreateModel())
                 {
-                    channel.QueueDeclare(queueName, isDurable, false, false, null);
+                    if (exchangeType != ExchangeType.Default)
+                    {
+                        string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[exchangeType];
+                        channel.ExchangeDeclare(exchangeName, strExchangeType);
+                    }
                     while (true)
                     {
                         BasicGetResult res = channel.BasicGet(queueName, false);
                         if (res != null)
                         {
+                            resList.Add(res);
                             channel.BasicAck(res.DeliveryTag, false);
-                            try
-                            {
-                                T obj = serializer.Deserialize<T>(res.Body);
-                                list.Add(obj);
-                            }
-                            catch (Exception ex)
-                            {
-                                RecordException(ex);
-                            }
                         }
                         else
                         {
@@ -148,77 +285,196 @@ namespace Raven.MessageQueue.WithRabbitMQ
             }
             catch (Exception ex)
             {
-                try
+                if (!Monitor.IsEntered(objLock))
                 {
-                    _connection.Close(100);
-                    _connection.Dispose();
+                    if (_connection != null)
+                    {
+                        try
+                        {
+                            _connection.Close(100);
+                            _connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    _connection = null;
                 }
-                catch { }
-                _connection = null;
-                RecordException(ex);
+                RecordException(ex, null);
             }
-            return list;
+
+            return resList;
         }
 
         /// <summary>
-        /// 入队
+        /// 
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="queueName"></param>
-        /// <param name="dataObj"></param>
-        /// <param name="exchangeType">默认为空，值为fanout是支持订阅发布模型</param>
-        public void Enqueue<T>(string queueName, T dataObj, ExchangeType exchangeType = ExchangeType.Direct)
+        /// <param name="exchangeType"></param>
+        /// <returns></returns>
+        private BasicGetResult BasicDequeue(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default)
         {
-            string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[exchangeType];
-
-            string exchangeName = string.Empty;
+            BasicGetResult res = null;
+            //List<BasicGetResult> resList = new List<BasicGetResult>();
             try
             {
                 using (IModel channel = Connection.CreateModel())
                 {
-                    if (exchangeType == ExchangeType.Fanout)
+                    if (exchangeType != ExchangeType.Default)
                     {
-                        exchangeName = "publish";
+                        string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[exchangeType];
                         channel.ExchangeDeclare(exchangeName, strExchangeType);
                     }
-                    channel.QueueDeclare(queueName, true, false, false, null);
-                    byte[] data = serializer.Serialize(dataObj);
-                    channel.BasicPublish(exchangeName, queueName, null, data);
+
+                    res = channel.BasicGet(queueName, false);
+                    if (res != null)
+                    {
+                        channel.BasicAck(res.DeliveryTag, false);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                try
+                if (!Monitor.IsEntered(objLock))
                 {
-                    _connection.Close(100);
-                    _connection.Dispose();
+                    if (_connection != null)
+                    {
+                        try
+                        {
+                            _connection.Close(100);
+                            _connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    _connection = null;
                 }
-                catch { }
-                _connection = null;
-                RecordException(ex);
-                //throw;
+                RecordException(ex, null);
             }
+
+            return res;
         }
 
         /// <summary>
-        /// 是否异步调用入队的方法
+        /// 
         /// </summary>
-        /// <typeparam name="T">入队的数据类型</typeparam>
-        /// <param name="queueName">队列名</param>
-        /// <param name="dataObj">入队数据</param>
-        /// <param name="exchangeType">通道</param>
-        public void EnqueueAysnc<T>(string queueName, T dataObj, ExchangeType exchangeType = ExchangeType.Direct)
+        /// <param name="queueName"></param>
+        /// <param name="exchangeType"></param>
+        /// <returns></returns>
+        private IModel BasicQueueBind(string exchangeName, EventHandler<BasicDeliverEventArgs> callback)
         {
-            if (_queue.Count < _maxQueueCount)
+            //List<BasicGetResult> resList = new List<BasicGetResult>();
+            try
             {
-                var qm = new QueueMessage();
-                qm.queueName = queueName;
-                qm.data = dataObj;
-                qm.exchangeType = exchangeType;
+                IModel channel = Connection.CreateModel();
 
-                _queue.Enqueue(qm);
+                string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[ExchangeType.Fanout];
+                channel.ExchangeDeclare(exchangeName, strExchangeType);
 
-                resetEvent.Set();
+                var queueName = channel.QueueDeclare().QueueName;
+                channel.QueueBind(queueName, exchangeName, "");
+
+                var consumer = new EventingBasicConsumer(channel);
+                consumer.Received += callback;
+
+                channel.BasicConsume(queueName, true, consumer);
+
+                return channel;
+
+                //res = channel.BasicGet(queueName, false);
+                //if (res != null)
+                //{
+                //    channel.BasicAck(res.DeliveryTag, false);
+                //}
+
+            }
+            catch (Exception ex)
+            {
+                if (!Monitor.IsEntered(objLock))
+                {
+                    if (_connection != null)
+                    {
+                        try
+                        {
+                            _connection.Close(100);
+                            _connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    _connection = null;
+                }
+                RecordException(ex, null);
+            }
+
+            return null;
+        }
+
+
+        /// <summary>
+        /// 入队
+        /// </summary>
+        /// <param name="queueName"></param>
+        /// <param name="dataObj"></param>
+        /// <param name="persistent">数据是否持久化</param>
+        /// <param name="durableQueue">队列是否持久化</param>
+        /// <param name="exchangeType">默认为空，值为fanout是支持订阅发布模型</param>
+        private bool BasicEnqueue(string exchangeName, string queueName, object dataObj, bool persistent = false, bool durableQueue = false, ExchangeType exchangeType = ExchangeType.Default)
+        {
+            try
+            {
+                using (IModel channel = Connection.CreateModel())
+                {
+                    if (exchangeType != ExchangeType.Default)
+                    {
+                        string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[exchangeType];
+                        channel.ExchangeDeclare(exchangeName, strExchangeType);
+                    }
+                    //if (exchangeType == ExchangeType.Fanout)
+                    //{
+                    //    exchangeName = "publish";
+                    //}
+                    if (durableQueue)
+                    {
+                        channel.QueueDeclare(queueName, true, false, false, null);
+                    }
+
+                    IBasicProperties properties = propertiesEmpty;
+                    if (persistent)
+                    {
+                        properties = channel.CreateBasicProperties();
+                        properties.Persistent = true;
+                    }
+                    byte[] data = serializer.Serialize(dataObj);
+                    channel.BasicPublish(exchangeName, queueName, properties, data);
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!Monitor.IsEntered(objLock))
+                {
+                    if (_connection != null)
+                    {
+                        try
+                        {
+                            _connection.Close(100);
+                            _connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    _connection = null;
+                }
+                RecordException(ex, dataObj);
+
+
+                return false;
+                //throw;
             }
         }
 
@@ -234,17 +490,16 @@ namespace Raven.MessageQueue.WithRabbitMQ
                 {
                     isQueueToWrite = true;
                     QueueMessage qm = null;
-                    while (_queue.TryDequeue(out qm))
+                    while (_queue.TryPeek(out qm))
                     {
-                        try
+                        if (BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
                         {
-                            Enqueue<object>(qm.queueName, qm.data, qm.exchangeType);
+                            _queue.TryDequeue(out qm);
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            RecordException(ex);
+                            break;
                         }
-
                         SpinWait.SpinUntil(() => false, 1);
                     }
 
@@ -257,29 +512,30 @@ namespace Raven.MessageQueue.WithRabbitMQ
             }
         }
 
-
         /// <summary>
         /// 记录异常
         /// </summary>
         /// <param name="ex"></param>
-        private void RecordException(Exception ex)
+        /// <param name="dataObj"></param>
+        private void RecordException(Exception ex, object dataObj)
         {
             if (loger != null)
             {
-                loger.LogError(ex.Message, ex);
+                loger.LogError(ex, dataObj);
             }
         }
-
     }
-
 
     /// <summary>
     /// 队列消息
     /// </summary>
-    public class QueueMessage
+    internal class QueueMessage
     {
+        public string exchangeName;
         public string queueName;
         public object data;
+        public bool persistent;
+        public bool durableQueue;
         public ExchangeType exchangeType;
     }
 }

@@ -6,8 +6,16 @@ using System.Threading.Tasks;
 
 namespace Raven.MessageQueue
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public interface ILoger
     {
-        void LogError(string message, Exception ex);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ex"></param>
+        /// <param name="dataObj">1.Dequeue(出队时为BasicGetResult的Body,byte[]类型 或 null);2.Enqueue(入队时为传的dataObj)</param>
+        void LogError(Exception ex, object dataObj);
     }
 }

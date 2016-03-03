@@ -13,7 +13,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// </summary>
         public readonly static IDictionary<ExchangeType, string> ExchangeTypeDict = new Dictionary<ExchangeType, string>()
         {
-            {ExchangeType.Default, ""},
+            {ExchangeType.Default, string.Empty},
             {ExchangeType.Fanout, RabbitMQ.Client.ExchangeType.Fanout},
             {ExchangeType.Direct, RabbitMQ.Client.ExchangeType.Direct},
             {ExchangeType.Topic, RabbitMQ.Client.ExchangeType.Topic},

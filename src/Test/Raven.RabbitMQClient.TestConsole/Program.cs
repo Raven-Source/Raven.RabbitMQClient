@@ -8,12 +8,13 @@ using Raven.MessageQueue.WithRabbitMQ;
 using Raven.Serializer;
 using Raven.MessageQueue;
 using Newtonsoft.Json;
+using System.Threading;
 
 namespace Raven.RabbitMQClient.TestConsole
 {
     public class Loger : ILoger
     {
-        public void LogError(string message, Exception ex)
+        public void LogError(Exception ex, object dataObj)
         {
             Console.WriteLine(ex.Message);
             Console.WriteLine(ex.StackTrace);
@@ -56,14 +57,15 @@ namespace Raven.RabbitMQClient.TestConsole
                     case "dequeue":
                         Dequeue();
                         break;
-                    case "consume":
-                        Consume();
+                    case "publish":
+                        Publish();
                         break;
-                    case "consume_cancel":
-                        if (arr.Length > 1)
-                        {
-                            ConsumeCancel(arr[1]);
-                        }
+                    case "subscribe":
+                        //if (arr.Length > 1)
+                        //{
+                        //    Subscribe(arr[1]);
+                        //}
+                        Subscribe();
                         break;
                 }
 
@@ -78,29 +80,32 @@ namespace Raven.RabbitMQClient.TestConsole
             obj.Name = "dagds大公司gg";
             obj.Time = DateTime.Now;
 
-            Instance.EnqueueAysnc<User>("raven_log", obj);
+            Instance.Send("raven_log", obj);
             Console.WriteLine("Enqueue end");
         }
 
-        static void Consume()
+        static void Publish()
         {
-            //var consumeTag = Instance.Consume<User>("raven_log", (u) =>
-            //{
-            //    Console.WriteLine("ConsumerReceived:{0}", u.ID);
-            //});
-            //Console.WriteLine("consumeTag:" + consumeTag);
+            User obj = new User();
+            obj.ID = 5325;
+            obj.Name = "dagds大公司gg";
+            obj.Time = DateTime.Now;
+
+            Instance.Publish("exlog2", obj);
         }
 
 
-        static void ConsumeCancel(string consumeTag)
+        static void Subscribe()
         {
-            //Instance.ConsumeCancel(consumeTag);
-            //Console.WriteLine("consumeTag:{0} is cancel", consumeTag);
+            Instance.Subscribe<User>("exlog2", x =>
+            {
+                Console.WriteLine("Subscribe:{0}", JsonConvert.SerializeObject(x));
+            });
         }
 
         static void Dequeue()
         {
-            var userList = Instance.Dequeue<User>("raven_log");
+            var userList = Instance.ReceiveBatch<User>("raven_log");
 
             foreach (var user in userList)
             {
@@ -111,7 +116,7 @@ namespace Raven.RabbitMQClient.TestConsole
             }
             Console.WriteLine("Dequeue end");
         }
-        
+
     }
 
     public class User
@@ -119,6 +124,6 @@ namespace Raven.RabbitMQClient.TestConsole
         public string Name;
         public int ID;
         public DateTime Time;
-        
+
     }
 }

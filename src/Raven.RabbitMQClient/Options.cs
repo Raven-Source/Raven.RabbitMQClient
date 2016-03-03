@@ -12,7 +12,10 @@ namespace Raven.MessageQueue.WithRabbitMQ
     /// </summary>
     public class Options
     {
-        public const int DefaultMaxQueueCount = 100000;
+        /// <summary>
+        /// 默认最大队列数
+        /// </summary>
+        public const int DefaultMaxQueueCount = 500000;
 
         /// <summary>
         /// 

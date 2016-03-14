@@ -103,6 +103,12 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["queues"] = value;
             }
         }
+        /// <summary>
+        /// 路由器配置
+        /// </summary>
+        [ConfigurationProperty("exchanges")]
+        [ConfigurationCollection(typeof(ExchangeConfiguration), AddItemName = "exchange")]
+        public ExchangeConfigurationCollection ExchangeConfigs { get; set; }
     }
 
     public class BrokerConfigurationCollection : ConfigurationElementCollection

@@ -7,13 +7,17 @@ using System.Threading.Tasks;
 namespace Raven.Message.RabbitMQ.Abstract
 {
     /// <summary>
-    /// 消息监听者
+    /// 消息监听者，实现者需要线程安全
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public interface IMessageListener<T>
     {
         /// <summary>
-        /// 当消息收到时触发，实现必须线程安全
+        /// 消息接收自动完成
+        /// </summary>
+        bool AutoComplete { get; set; }
+        /// <summary>
+        /// 当消息收到时触发
         /// </summary>
         /// <param name="message"></param>
         void OnMessageReceive(T message);

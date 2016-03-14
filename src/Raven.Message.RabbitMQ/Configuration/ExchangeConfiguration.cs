@@ -41,4 +41,25 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
     }
+
+    public class ExchangeConfigurationCollection : ConfigurationElementCollection
+    {
+        public new ExchangeConfiguration this[string exchangeName]
+        {
+            get
+            {
+                return this.BaseGet(exchangeName) as ExchangeConfiguration;
+            }
+        }
+
+        protected override ConfigurationElement CreateNewElement()
+        {
+            return new ExchangeConfiguration();
+        }
+
+        protected override object GetElementKey(ConfigurationElement element)
+        {
+            return ((ExchangeConfiguration)element).Name;
+        }
+    }
 }

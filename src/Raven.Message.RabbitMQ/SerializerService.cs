@@ -32,5 +32,11 @@ namespace Raven.Message.RabbitMQ
             IDataSerializer serializer = GetSerializer(serializerType);
             return serializer.Serialize(obj);
         }
+
+        public static T Deserialize<T>(byte[] obj, SerializerType serializerType)
+        {
+            IDataSerializer serializer = GetSerializer(serializerType);
+            return serializer.Deserialize<T>(obj);
+        }
     }
 }

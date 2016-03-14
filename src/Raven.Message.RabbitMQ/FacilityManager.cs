@@ -17,12 +17,14 @@ namespace Raven.Message.RabbitMQ
         ILog _log;
 
         List<string> _declaredQueue;
+        List<string> _declaredExchange;
 
         internal FacilityManager(ILog log, BrokerConfiguration brokerConfig)
         {
             _brokerConfig = brokerConfig;
             _log = log;
             _declaredQueue = new List<string>(brokerConfig.QueueConfigs.Count);
+            _declaredExchange = new List<string>(brokerConfig.ExchangeConfigs.Count);
         }
 
         internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig)
@@ -75,7 +77,20 @@ namespace Raven.Message.RabbitMQ
 
         internal void DeclareExchange(string exchange, IModel channel, ExchangeConfiguration exchangeConfig)
         {
-            throw new NotImplementedException();
+            if (_declaredExchange.Contains(exchange))
+                return;
+            lock(exchange)
+            {
+                if (_declaredExchange.Contains(exchange))
+                    return;
+                try
+                {
+                    channel.ExchangeDeclare(exchange, "topic", true, false, null);
+                }
+                catch (OperationInterruptedException)
+                {
+                }
+            }
         }
 
         internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)

@@ -266,11 +266,11 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 最多同时处理消息数量
         /// </summary>
         [ConfigurationProperty("maxWorker")]
-        public int MaxWorker
+        public ushort? MaxWorker
         {
             get
             {
-                return (int)this["maxWorker"];
+                return (ushort?)this["maxWorker"];
             }
             set
             {

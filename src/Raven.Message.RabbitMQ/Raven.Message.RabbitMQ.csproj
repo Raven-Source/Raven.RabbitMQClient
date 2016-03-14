@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Abstract\ReceiveDelegate.cs" />
     <Compile Include="Client.cs" />
     <Compile Include="Configuration\BrokerConfiguration.cs" />
     <Compile Include="Configuration\ClientConfiguration.cs" />

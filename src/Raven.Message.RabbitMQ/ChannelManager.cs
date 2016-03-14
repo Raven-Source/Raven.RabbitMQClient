@@ -58,7 +58,7 @@ namespace Raven.Message.RabbitMQ
 
         private void OnConnectionShutdown(object sender, ShutdownEventArgs e)
         {
-            Release();
+            //Release();
         }
 
         void Release()

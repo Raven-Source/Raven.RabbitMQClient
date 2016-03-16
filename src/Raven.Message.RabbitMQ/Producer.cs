@@ -155,6 +155,10 @@ namespace Raven.Message.RabbitMQ
                     priority = option.Priority;
                     messageId = option.MessageId;
                     correlationId = option.CorrelationId;
+                    if (!string.IsNullOrEmpty(option.ReplyQueue))
+                    {
+                        replyTo = option.ReplyQueue;
+                    }
                 }
 
                 bool success = DoSend(body, null, queue, channel, doConfirm, confirmTimeout, replyTo, persistent, priority, messageId, correlationId);

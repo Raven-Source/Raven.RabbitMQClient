@@ -20,6 +20,10 @@ namespace Raven.Message.RabbitMQ
         /// 关联Id，回复消息时此字段表示原始消息标识
         /// </summary>
         public string CorrelationId { get; set; }
-        
+        /// <summary>
+        /// 回复队列名
+        /// </summary>
+        public string ReplyQueue { get; set; }
+
     }
 }

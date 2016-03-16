@@ -27,6 +27,8 @@ namespace Raven.Message.RabbitMQ
         const int State_Init = 1;
         const int State_Release = 2;
 
+        internal event EventHandler<ShutdownEventArgs> ConnectionShutdown;
+
         internal ChannelManager(ILog log, BrokerConfiguration brokerConfig)
         {
             Log = log;
@@ -58,7 +60,8 @@ namespace Raven.Message.RabbitMQ
 
         private void OnConnectionShutdown(object sender, ShutdownEventArgs e)
         {
-            //Release();
+            if (ConnectionShutdown != null)
+                ConnectionShutdown(sender, e);
         }
 
         void Release()

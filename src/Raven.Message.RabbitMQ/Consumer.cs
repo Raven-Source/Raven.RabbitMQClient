@@ -24,6 +24,8 @@ namespace Raven.Message.RabbitMQ
 
         internal ChannelManager Channel { get; set; }
 
+        internal Client Client { get; set; }
+
         internal Consumer()
         {
 
@@ -56,7 +58,7 @@ namespace Raven.Message.RabbitMQ
             }, queue);
         }
 
-        public bool OnReceive<TMessage, TReply>(MessageReceived<TMessage, TReply> callback, string queue, bool autoComplete)
+        public bool OnReceive<TMessage, TReply>(MessageReceived<TMessage, TReply> callback, string queue)
         {
             return BindQueueEvent((ea, queueConfig, channel) =>
             {
@@ -108,7 +110,7 @@ namespace Raven.Message.RabbitMQ
         {
             var body = ea.Body;
             TMessage message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
-            
+
             if (!queueConfig.ConsumerConfig.ConsumeConfirm)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
@@ -118,7 +120,16 @@ namespace Raven.Message.RabbitMQ
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
-            //todo send reply            
+            if (ea.BasicProperties != null && !string.IsNullOrEmpty(ea.BasicProperties.ReplyTo))
+            {
+                SendOption option = null;
+                if (!string.IsNullOrEmpty(ea.BasicProperties.MessageId))
+                {
+                    option = new SendOption();
+                    option.CorrelationId = ea.BasicProperties.MessageId;
+                }
+                Client.Producer.SendToBuff<TReply>(reply, ea.BasicProperties.ReplyTo, option);
+            }
         }
 
         private bool BindQueueEvent(Action<BasicDeliverEventArgs, QueueConfiguration, IModel> handler, string queue)

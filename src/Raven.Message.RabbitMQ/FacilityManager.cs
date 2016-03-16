@@ -15,16 +15,29 @@ namespace Raven.Message.RabbitMQ
 
         BrokerConfiguration _brokerConfig;
         ILog _log;
+        ChannelManager _channelManager;
 
         List<string> _declaredQueue;
         List<string> _declaredExchange;
 
-        internal FacilityManager(ILog log, BrokerConfiguration brokerConfig)
+        internal FacilityManager(ILog log, BrokerConfiguration brokerConfig, ChannelManager channelManager)
         {
             _brokerConfig = brokerConfig;
             _log = log;
-            _declaredQueue = new List<string>(brokerConfig.QueueConfigs.Count);
-            _declaredExchange = new List<string>(brokerConfig.ExchangeConfigs.Count);
+            _channelManager = channelManager;
+            _channelManager.ConnectionShutdown += _channelManager_ConnectionShutdown;
+            Reset();
+        }
+
+        private void _channelManager_ConnectionShutdown(object sender, ShutdownEventArgs e)
+        {
+            Reset();
+        }
+
+        internal void Reset()
+        {
+            _declaredQueue = new List<string>(_brokerConfig.QueueConfigs.Count);
+            _declaredExchange = new List<string>(_brokerConfig.ExchangeConfigs.Count);
         }
 
         internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig)

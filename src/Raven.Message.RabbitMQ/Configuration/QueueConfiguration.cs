@@ -277,21 +277,21 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["maxWorker"] = value;
             }
         }
-        /// <summary>
-        /// 消息监听器类型，接口<see cref="Raven.Message.RabbitMQ.Abstract.IMessageListener{T}"/>的实现类，若配置此项，初始化后自动监听队列
-        /// </summary>
-        [ConfigurationProperty("messageListenerType")]
-        public string MessageListenerType
-        {
-            get
-            {
-                return (string)this["messageListenerType"];
-            }
-            set
-            {
-                this["messageListenerType"] = value;
-            }
-        }
+        ///// <summary>
+        ///// 消息监听器类型，接口<see cref="Raven.Message.RabbitMQ.Abstract.IMessageListener{T}"/>的实现类，若配置此项，初始化后自动监听队列
+        ///// </summary>
+        //[ConfigurationProperty("messageListenerType")]
+        //public string MessageListenerType
+        //{
+        //    get
+        //    {
+        //        return (string)this["messageListenerType"];
+        //    }
+        //    set
+        //    {
+        //        this["messageListenerType"] = value;
+        //    }
+        //}
     }
 
     public class QueueConfigurationCollection : ConfigurationElementCollection

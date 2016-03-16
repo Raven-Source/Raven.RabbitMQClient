@@ -52,7 +52,7 @@ namespace Raven.Message.RabbitMQ
             BrokerConfig = brokerConfig;
             ChannelManager channelManager = new ChannelManager(Log, brokerConfig);
             Producer = Factory.CreateProducer(Log, brokerConfig);
-            Consumer = Factory.CreateConsumer(Log, brokerConfig);
+            Consumer = Factory.CreateConsumer(this, Log, brokerConfig);
         }
     }
 }

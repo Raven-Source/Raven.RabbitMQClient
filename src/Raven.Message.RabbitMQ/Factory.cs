@@ -13,13 +13,14 @@ namespace Raven.Message.RabbitMQ
         static Dictionary<string, FacilityManager> _facilities = new Dictionary<string, FacilityManager>();
         static Dictionary<string, ChannelManager> _channels = new Dictionary<string, ChannelManager>();
 
-        internal static Consumer CreateConsumer(ILog log, BrokerConfiguration brokerConfig)
+        internal static Consumer CreateConsumer(Client client, ILog log, BrokerConfiguration brokerConfig)
         {
             Consumer consusmer = new Consumer();
+            consusmer.Client = client;
             consusmer.BrokerConfig = brokerConfig;
             consusmer.Log = log;
-            consusmer.Facility = CreateFacility(log, brokerConfig);
             consusmer.Channel = CreateChannel(log, brokerConfig);
+            consusmer.Facility = CreateFacility(log, brokerConfig, consusmer.Channel);
             return consusmer;
         }
 
@@ -27,13 +28,13 @@ namespace Raven.Message.RabbitMQ
         {
             Producer producer = new Producer();
             producer.BrokerConfig = brokerConfig;
-            producer.Log = log;
-            producer.Facility = CreateFacility(log, brokerConfig);
+            producer.Log = log;           
             producer.Channel = CreateChannel(log, brokerConfig);
+            producer.Facility = CreateFacility(log, brokerConfig, producer.Channel);
             return producer;
         }
 
-        static FacilityManager CreateFacility(ILog log, BrokerConfiguration brokerConfig)
+        internal static FacilityManager CreateFacility(ILog log, BrokerConfiguration brokerConfig, ChannelManager channel)
         {
             if (!_facilities.ContainsKey(brokerConfig.Name))
             {
@@ -41,7 +42,7 @@ namespace Raven.Message.RabbitMQ
                 {
                     if (!_facilities.ContainsKey(brokerConfig.Name))
                     {
-                        FacilityManager facility = new FacilityManager(log, brokerConfig);
+                        FacilityManager facility = new FacilityManager(log, brokerConfig, channel);
                         _facilities.Add(brokerConfig.Name, facility);
                     }
                 }

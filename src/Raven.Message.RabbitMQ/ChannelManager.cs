@@ -98,32 +98,5 @@ namespace Raven.Message.RabbitMQ
             }
             catch { }
         }
-
-        internal bool SendWithPooledChannel(string queue, Func<IModel, QueueConfiguration, bool> channelFunc)
-        {
-            IModel channel = GetChannel();
-            bool success = false;
-            try
-            {
-                QueueConfiguration queueConfig = BrokerConfig.QueueConfigs[queue];
-                success = channelFunc(channel, queueConfig);
-            }
-            catch (Exception ex)
-            {
-                Log.LogError(null, ex, null);
-                if (channel != null)
-                {
-                    try
-                    {
-                        channel.Dispose();
-                        channel = null;
-                    }
-                    catch
-                    { }
-                }
-            }
-            ReturnChannel(channel);
-            return success;
-        }
     }
 }

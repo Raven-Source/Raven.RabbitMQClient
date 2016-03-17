@@ -39,9 +39,9 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
         /// <summary>
-        /// 序列化类型
+        /// 序列化类型，默认为MsgPack
         /// </summary>
-        [ConfigurationProperty("serializerType", IsRequired = true)]
+        [ConfigurationProperty("serializerType", DefaultValue = SerializerType.MsgPack)]
         public SerializerType SerializerType
         {
             get
@@ -53,9 +53,11 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["serializerType"] = value;
             }
         }
-
-        [ConfigurationProperty("brokers")]
-        [ConfigurationCollection(typeof(BrokerConfiguration),AddItemName ="broker")]
+        /// <summary>
+        /// 服务端配置
+        /// </summary>
+        [ConfigurationProperty("brokers", IsRequired = true)]
+        [ConfigurationCollection(typeof(BrokerConfiguration), AddItemName = "broker")]
         public BrokerConfigurationCollection Brokers
         {
             get

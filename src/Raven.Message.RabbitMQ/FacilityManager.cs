@@ -49,38 +49,45 @@ namespace Raven.Message.RabbitMQ
                 if (_declaredQueue.Contains(queue))
                     return;
                 Dictionary<string, object> parms = null;
-                if (queueConfig.MaxPriority > 0)
+                bool durable = false;
+                bool autoDelete = false;
+                if (queueConfig != null)
                 {
-                    if (parms == null)
-                        parms = new Dictionary<string, object>();
-                    parms.Add("x-max-priority", queueConfig.MaxPriority);
-                }
-                if (queueConfig.MaxLength > 0)
-                {
-                    if (parms == null)
-                        parms = new Dictionary<string, object>();
-                    parms.Add("x-max-length", queueConfig.MaxLength);
-                }
-                if (queueConfig.Expiration > 0)
-                {
-                    if (parms == null)
-                        parms = new Dictionary<string, object>();
-                    parms.Add("x-message-ttl", queueConfig.Expiration);
+                    durable = queueConfig.Durable;
+                    autoDelete = queueConfig.AutoDelete;
+                    if (queueConfig.MaxPriority > 0)
+                    {
+                        if (parms == null)
+                            parms = new Dictionary<string, object>();
+                        parms.Add("x-max-priority", queueConfig.MaxPriority);
+                    }
+                    if (queueConfig.MaxLength != null)
+                    {
+                        if (parms == null)
+                            parms = new Dictionary<string, object>();
+                        parms.Add("x-max-length", queueConfig.MaxLength);
+                    }
+                    if (queueConfig.Expiration != null)
+                    {
+                        if (parms == null)
+                            parms = new Dictionary<string, object>();
+                        parms.Add("x-message-ttl", queueConfig.Expiration);
+                    }
                 }
                 try
                 {
-                    channel.QueueDeclare(queue, queueConfig.Durable, false, queueConfig.AutoDelete, parms);
+                    channel.QueueDeclare(queue, durable, false, autoDelete, parms);
                 }
                 catch (OperationInterruptedException)
                 {
-                    if (queueConfig.RedeclareWhenFailed)
+                    if (queueConfig != null && queueConfig.RedeclareWhenFailed)
                     {
                         channel.QueueDelete(queue);
                         channel.QueueDeclare(queue, queueConfig.Durable, false, queueConfig.AutoDelete, parms);
                     }
                 }
 
-                if (!string.IsNullOrEmpty(queueConfig.BindToExchange))
+                if (queueConfig != null && !string.IsNullOrEmpty(queueConfig.BindToExchange))
                 {
                     DeclareBind(channel, queue, queueConfig.BindToExchange, queueConfig.BindMessageKey);
                 }
@@ -92,13 +99,18 @@ namespace Raven.Message.RabbitMQ
         {
             if (_declaredExchange.Contains(exchange))
                 return;
-            lock(exchange)
+            lock (exchange)
             {
                 if (_declaredExchange.Contains(exchange))
                     return;
                 try
                 {
-                    channel.ExchangeDeclare(exchange, "topic", true, false, null);
+                    string exchangeType = "topic";
+                    if (exchangeConfig != null&&!string.IsNullOrEmpty(exchangeConfig.ExchangeType))
+                    {
+                        exchangeType = exchangeConfig.ExchangeType;
+                    }
+                    channel.ExchangeDeclare(exchange, exchangeType, true, false, null);
                 }
                 catch (OperationInterruptedException)
                 {

@@ -30,9 +30,9 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
         /// <summary>
-        /// 当没有消费者时，队列是否自动删除
+        /// 当没有消费者时，队列是否自动删除，默认不删除
         /// </summary>
-        [ConfigurationProperty("autoDelete")]
+        [ConfigurationProperty("autoDelete", DefaultValue = false)]
         public bool AutoDelete
         {
             get
@@ -47,7 +47,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// <summary>
         /// 队列可重用，在消息中间件重启后队列是否还能继续使用
         /// </summary>
-        [ConfigurationProperty("durable")]
+        [ConfigurationProperty("durable", DefaultValue = true)]
         public bool Durable
         {
             get
@@ -60,9 +60,10 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
         /// <summary>
-        /// 支持最大优先级，最小0，最大10
+        /// 支持最大优先级，最小0，最大10，默认0
         /// </summary>
-        [ConfigurationProperty("maxPriority")]
+        [ConfigurationProperty("maxPriority", DefaultValue = 0)]
+        [IntegerValidator(ExcludeRange = false, MaxValue = 10, MinValue = 0)]
         public byte MaxPriority
         {
             get
@@ -78,11 +79,12 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 过期时间，毫秒为单位，在定义队列时加入x-message-ttl参数
         /// </summary>
         [ConfigurationProperty("expiration")]
-        public int Expiration
+        [LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
+        public uint? Expiration
         {
             get
             {
-                return (int)this["expiration"];
+                return (uint?)this["expiration"];
             }
             set
             {
@@ -93,11 +95,12 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 最大长度，当达到最大长度后开始从头部删除消息
         /// </summary>
         [ConfigurationProperty("maxLength")]
-        public int MaxLength
+        [LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
+        public uint? MaxLength
         {
             get
             {
-                return (int)this["maxLength"];
+                return (uint?)this["maxLength"];
             }
             set
             {
@@ -177,39 +180,8 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// <summary>
     /// 队列发送行为
     /// </summary>
-    public class QueueProducerConfiguration : ConfigurationElement
+    public class QueueProducerConfiguration : ProducerConfiguration
     {
-        /// <summary>
-        /// 只有当消息中间件确认已送达才算发送成功，确保消息不会因为网络或服务异常等原因造成少发的情况
-        /// 在等待消息确认时有一定延迟，若超过超时时间则认为发送失败
-        /// </summary>
-        [ConfigurationProperty("sendConfirm")]
-        public bool SendConfirm
-        {
-            get
-            {
-                return (bool)this["sendConfirm"];
-            }
-            set
-            {
-                this["sendConfirm"] = value;
-            }
-        }
-        /// <summary>
-        /// 确认超时时间，单位毫秒
-        /// </summary>
-        [ConfigurationProperty("sendConfirmTimeout")]
-        public int SendConfirmTimeout
-        {
-            get
-            {
-                return (int)this["sendConfirmTimeout"];
-            }
-            set
-            {
-                this["sendConfirmTimeout"] = value;
-            }
-        }
         /// <summary>
         /// 回复队列名
         /// </summary>
@@ -223,21 +195,6 @@ namespace Raven.Message.RabbitMQ.Configuration
             set
             {
                 this["replyQueue"] = value;
-            }
-        }
-        /// <summary>
-        /// 消息持久化
-        /// </summary>
-        [ConfigurationProperty("messagePersistent")]
-        public bool MessagePersistent
-        {
-            get
-            {
-                return (bool)this["messagePersistent"];
-            }
-            set
-            {
-                this["messagePersistent"] = value;
             }
         }
     }
@@ -263,14 +220,15 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
         /// <summary>
-        /// 最多同时处理消息数量
+        /// 最多同时处理消息数量，默认值10
         /// </summary>
-        [ConfigurationProperty("maxWorker")]
-        public ushort? MaxWorker
+        [ConfigurationProperty("maxWorker", DefaultValue = 10)]
+        [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
+        public ushort MaxWorker
         {
             get
             {
-                return (ushort?)this["maxWorker"];
+                return (ushort)this["maxWorker"];
             }
             set
             {

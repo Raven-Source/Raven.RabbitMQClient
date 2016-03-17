@@ -17,6 +17,8 @@ namespace Raven.Message.RabbitMQ
     /// </summary>
     public class Producer
     {
+        const int ProducerType_Sender = 0;
+        const int ProducerType_Publisher = 1;
         internal BrokerConfiguration BrokerConfig { get; set; }
 
         internal ILog Log { get; set; }
@@ -29,25 +31,7 @@ namespace Raven.Message.RabbitMQ
         {
         }
 
-        BuffProducer _buffProducer = null;
-
-        BuffProducer Buffer
-        {
-            get
-            {
-                if (_buffProducer == null)
-                {
-                    lock (this)
-                    {
-                        if (_buffProducer == null)
-                        {
-                            _buffProducer = new Producer.BuffProducer(this);
-                        }
-                    }
-                }
-                return _buffProducer;
-            }
-        }
+        Dictionary<string, BuffProducer> _buffProducerDict = null;
 
         /// <summary>
         /// 往指定队列发送消息，消息只会被消费一次
@@ -69,7 +53,8 @@ namespace Raven.Message.RabbitMQ
         /// <param name="option">附加参数 <see cref="Raven.Message.RabbitMQ.SendOption"/></param>
         public void SendToBuff<T>(T message, string queue, SendOption option = null)
         {
-            Buffer.SendToBuff(message, queue, option);
+            BuffProducer producer = GetBuffProducer(queue, ProducerType_Sender);
+            producer.SendToBuff(message, queue, option);
         }
         /// <summary>
         /// 发布消息，消息会被每个订阅者消费
@@ -80,40 +65,19 @@ namespace Raven.Message.RabbitMQ
         /// <param name="messageKey">消息关键字，若关键字有多个请用.分割</param>
         public bool Publish<T>(T message, string exchange, string messageKey = null)
         {
-            ExchangeConfiguration exchangeConfig = null;
-            if (BrokerConfig.ExchangeConfigs != null)
-            {
-                exchangeConfig = BrokerConfig.ExchangeConfigs[exchange];
-            }
-            if (exchangeConfig == null)
-            {
-                Log.LogError("exchange config not found", null, message);
-                return false;
-            }
-            IModel channel = Channel.GetChannel();
-            if (channel == null)
-                return false;
-            try
-            {
-                Facility.DeclareExchange(exchange, channel, exchangeConfig);
-                byte[] body = SerializeMessage(message, exchangeConfig.SerializerType);
-                bool success = DoSend(body, exchange, messageKey, channel);
-                if (success)
-                {
-                    Log.LogDebug(string.Format("publish success, {0} {1}", exchange, messageKey), message);
-                    Channel.ReturnChannel(channel);
-                }
-                else
-                {
-                    Log.LogError(string.Format("publish failed, {0} {1}", exchange, messageKey), null, message);
-                }
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Log.LogError(string.Format("publish failed, {0} {1}", exchange, messageKey), ex, message);
-                return false;
-            }
+            return PublishInternal<T>(message, exchange, messageKey, true);
+        }
+        /// <summary>
+        /// 发布消息异步方法，消息会被每个订阅者消费
+        /// </summary>
+        /// <typeparam name="T">消息类型</typeparam>
+        /// <param name="message">消息</param>
+        /// <param name="exchange">路由器名</param>
+        /// <param name="messageKey">消息关键字，若关键字有多个请用.分割</param>
+        public void PublishToBuff<T>(T message, string exchange, string messageKey = null)
+        {
+            BuffProducer buffProducer = GetBuffProducer(exchange, ProducerType_Publisher);
+            buffProducer.PublishToBuff<T>(message, exchange, messageKey);
         }
 
         private bool SendInternal<T>(T message, string queue, SendOption option, bool sync)
@@ -121,47 +85,47 @@ namespace Raven.Message.RabbitMQ
             QueueConfiguration queueConfig = null;
             if (BrokerConfig.QueueConfigs != null)
                 queueConfig = BrokerConfig.QueueConfigs[queue];
-            if (queueConfig == null)
-            {
-                Log.LogError("queue config not found", null, message);
-                return false;
-            }
+            Log.LogDebug(string.Format("queue config not found, {0}", queue), message);
+
             IModel channel = Channel.GetChannel();
             if (channel == null)
                 return false;
             try
             {
                 Facility.DeclareQueue(queue, channel, queueConfig);
-                byte[] body = SerializeMessage(message, queueConfig.SerializerType);
+                byte[] body = SerializeMessage(message, queueConfig?.SerializerType);
                 bool doConfirm = false;
-                int confirmTimeout = 0;
-                string replyTo = null;
+                uint confirmTimeout = 0;
                 bool persistent = false;
+
+                string replyTo = null;
                 byte priority = 0;
                 string messageId = null;
                 string correlationId = null;
-                if (queueConfig.ProducerConfig != null)
-                {
-                    doConfirm = queueConfig.ProducerConfig.SendConfirm && sync;
-                    confirmTimeout = queueConfig.ProducerConfig.SendConfirmTimeout;
-                    if (queueConfig.ProducerConfig.MessagePersistent || !string.IsNullOrEmpty(queueConfig.ProducerConfig.ReplyQueue))
-                    {
-                        replyTo = queueConfig.ProducerConfig.ReplyQueue;
-                        persistent = queueConfig.ProducerConfig.MessagePersistent;
-                    }
-                }
+
+                FindProducerOptions(queueConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent);
+
                 if (option != null)
                 {
                     priority = option.Priority;
+                    if (queueConfig != null)
+                    {
+                        if (priority > queueConfig.MaxPriority)
+                            priority = queueConfig.MaxPriority;
+                    }
                     messageId = option.MessageId;
                     correlationId = option.CorrelationId;
                     if (!string.IsNullOrEmpty(option.ReplyQueue))
                     {
                         replyTo = option.ReplyQueue;
                     }
+                    else if (queueConfig?.ProducerConfig != null)
+                    {
+                        replyTo = queueConfig?.ProducerConfig.ReplyQueue;
+                    }
                 }
 
-                bool success = DoSend(body, null, queue, channel, doConfirm, confirmTimeout, replyTo, persistent, priority, messageId, correlationId);
+                bool success = DoSend(body, null, queue, channel, doConfirm, confirmTimeout, persistent, replyTo, priority, messageId, correlationId);
                 if (success)
                 {
                     Log.LogDebug(string.Format("send success, {0}", queue), message);
@@ -180,7 +144,61 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private bool DoSend(byte[] message, string exchange, string routingKey, IModel channel, bool doConfirm = false, int confirmTimeout = 0, string replyTo = null, bool persistent = false, byte priority = 0, string messageId = null, string correlationId = null)
+        private bool PublishInternal<T>(T message, string exchange, string messageKey, bool sync)
+        {
+            ExchangeConfiguration exchangeConfig = null;
+            if (BrokerConfig.ExchangeConfigs != null)
+            {
+                exchangeConfig = BrokerConfig.ExchangeConfigs[exchange];
+            }
+            if (exchangeConfig == null)
+            {
+                Log.LogDebug(string.Format("exchange config not found, {0}", exchange), message);
+            }
+            IModel channel = Channel.GetChannel();
+            if (channel == null)
+                return false;
+            try
+            {
+                Facility.DeclareExchange(exchange, channel, exchangeConfig);
+                byte[] body = SerializeMessage(message, exchangeConfig?.SerializerType);
+                bool doConfirm = false;
+                uint confirmTimeout = 0;
+                bool persistent = false;
+                FindProducerOptions(exchangeConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent);
+                bool success = DoSend(body, exchange, messageKey, channel, doConfirm, confirmTimeout, persistent);
+                if (success)
+                {
+                    Log.LogDebug(string.Format("publish success, {0} {1}", exchange, messageKey), message);
+                    Channel.ReturnChannel(channel);
+                }
+                else
+                {
+                    Log.LogError(string.Format("publish failed, {0} {1}", exchange, messageKey), null, message);
+                }
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(string.Format("publish failed, {0} {1}", exchange, messageKey), ex, message);
+                return false;
+            }
+        }
+
+        private void FindProducerOptions(ProducerConfiguration config, bool sync, out bool doConfirm, out uint confirmTimeout, out bool persistent)
+        {
+            doConfirm = false;
+            confirmTimeout = 0;
+            persistent = false;
+            if (config != null)
+            {
+                doConfirm = config.SendConfirm && sync;
+                confirmTimeout = config.SendConfirmTimeout;
+                persistent = config.MessagePersistent;
+            }
+        }
+
+        private bool DoSend(byte[] message, string exchange, string routingKey, IModel channel, bool doConfirm = false, uint confirmTimeout = 0, bool persistent = false, string replyTo = null, byte priority = 0, string messageId = null, string correlationId = null)
         {
             IBasicProperties properties = null;
             if (!string.IsNullOrEmpty(replyTo) || persistent || priority > 0 || !string.IsNullOrEmpty(messageId) || !string.IsNullOrEmpty(correlationId))
@@ -216,23 +234,91 @@ namespace Raven.Message.RabbitMQ
             return SerializerService.Serialize(message, sType);
         }
 
+        private string GetProducerAction(int producerType)
+        {
+            switch (producerType)
+            {
+                case ProducerType_Sender:
+                    return "send";
+                case ProducerType_Publisher:
+                    return "publish";
+                default:
+                    return null;
+            }
+        }
+
+        BuffProducer GetBuffProducer(string name, int producerType)
+        {
+            string buffProducerName = GetProducerAction(producerType) + name;
+            if (_buffProducerDict == null)
+                _buffProducerDict = new Dictionary<string, BuffProducer>();
+            if (!_buffProducerDict.ContainsKey(buffProducerName))
+            {
+                lock (_buffProducerDict)
+                {
+                    if (!_buffProducerDict.ContainsKey(buffProducerName))
+                    {
+                        ushort maxWorker = 1;
+                        switch (producerType)
+                        {
+                            case ProducerType_Sender:
+                                var queueConfig = BrokerConfig.QueueConfigs[name];
+                                if (queueConfig != null && queueConfig.ProducerConfig != null)
+                                {
+                                    maxWorker = queueConfig.ProducerConfig.MaxWorker;
+                                }
+                                break;
+                            case ProducerType_Publisher:
+                                var exchangeConfig = BrokerConfig.ExchangeConfigs[name];
+                                if (exchangeConfig != null && exchangeConfig.ProducerConfig != null)
+                                {
+                                    maxWorker = exchangeConfig.ProducerConfig.MaxWorker;
+                                }
+                                break;
+                            default:
+                                throw new NotImplementedException("producer type not supported");
+                        }
+                        BuffProducer buffProducer = new BuffProducer(this, maxWorker, producerType);
+                        _buffProducerDict.Add(buffProducerName, buffProducer);
+                    }
+                }
+            }
+            return _buffProducerDict[buffProducerName];
+        }
+
         class BuffProducer
         {
             private AutoResetEvent _resetEvent;
             private ConcurrentQueue<BuffMessage> _queue;
-            private Thread _queueWorkThread;
+            private List<Thread> _workerList;
             private Producer _producer;
-            public BuffProducer(Producer producer)
+            public BuffProducer(Producer producer, ushort maxWorker, int producerType)
             {
                 _producer = producer;
                 _queue = new ConcurrentQueue<BuffMessage>();
                 _resetEvent = new AutoResetEvent(false);
-                _queueWorkThread = new Thread(QueueToWrite);
-                _queueWorkThread.IsBackground = true;
-                _queueWorkThread.Start();
+
+                if (maxWorker <= 0)
+                    maxWorker = 1;
+                _workerList = new List<Thread>(maxWorker);
+                for (int i = 0; i < maxWorker; i++)
+                {
+                    Thread worker = null;
+                    if (producerType == ProducerType_Sender)
+                    {
+                        worker = new Thread(DoSend);
+                    }
+                    else if (producerType == ProducerType_Publisher)
+                    {
+                        worker = new Thread(DoPublish);
+                    }
+                    worker.IsBackground = true;
+                    worker.Start();
+                    _workerList.Add(worker);
+                }
             }
 
-            internal void SendToBuff<T>(T message, string queue, SendOption option = null)
+            internal void SendToBuff<T>(T message, string queue, SendOption option)
             {
                 BuffMessage buffMessage = new BuffMessage();
                 buffMessage.Message = message;
@@ -243,7 +329,28 @@ namespace Raven.Message.RabbitMQ
                 _resetEvent.Set();
             }
 
-            private void QueueToWrite()
+            internal void PublishToBuff<T>(T message, string exchange, string messageKey)
+            {
+                BuffMessage buffMessage = new BuffMessage();
+                buffMessage.Message = message;
+                buffMessage.Exchange = exchange;
+                buffMessage.MessageKey = messageKey;
+
+                _queue.Enqueue(buffMessage);
+                _resetEvent.Set();
+            }
+
+            private void DoSend()
+            {
+                ActionOnQueue((qm) => _producer.SendInternal<object>(qm.Message, qm.Queue, qm.Option, false));
+            }
+
+            private void DoPublish()
+            {
+                ActionOnQueue((qm) => _producer.PublishInternal<object>(qm.Message, qm.Exchange, qm.MessageKey, false));
+            }
+
+            private void ActionOnQueue(Func<BuffMessage, bool> action)
             {
                 while (true)
                 {
@@ -251,22 +358,16 @@ namespace Raven.Message.RabbitMQ
                     if (_queue.Count > 0)
                     {
                         BuffMessage qm = null;
-                        while (_queue.TryPeek(out qm))
+                        while (_queue.TryDequeue(out qm))
                         {
-                            if (_producer.SendInternal<object>(qm.Message, qm.Queue, qm.Option, false))
+                            if (!action(qm))
                             {
-                                _queue.TryDequeue(out qm);
-                            }
-                            else
-                            {
-                                break;
+                                //todo send to failed queue
                             }
                             SpinWait.SpinUntil(() => false, 1);
                         }
                     }
                     _resetEvent.WaitOne(10000);
-                    //SpinWait.SpinUntil(() => false, waitMillisecondsTimeout);
-                    //Thread.Sleep(waitMillisecondsTimeout);
                 }
             }
 
@@ -276,6 +377,10 @@ namespace Raven.Message.RabbitMQ
                 public string Queue { get; set; }
 
                 public SendOption Option { get; set; }
+
+                public string Exchange { get; set; }
+
+                public string MessageKey { get; set; }
             }
         }
     }

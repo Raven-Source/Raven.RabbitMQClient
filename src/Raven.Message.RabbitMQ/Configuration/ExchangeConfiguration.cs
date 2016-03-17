@@ -26,6 +26,26 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
         /// <summary>
+        /// 消息匹配类型，默认为topic
+        /// fanout，所有消息会被绑定队列消费
+        /// headers，多条件匹配规则，客户端方法暂不支持
+        /// direct，消息关键字完全匹配
+        /// topic，消息关键字模式匹配
+        /// </summary>
+        [ConfigurationProperty("serializerType")]
+        public string ExchangeType
+        {
+            get
+            {
+                return (string)this["exchangeType"];
+            }
+            set
+            {
+                this["exchangeType"] = value;
+            }
+        }
+
+        /// <summary>
         /// 序列化类型，如果配置此项将覆盖客户端配置中的序列化类型
         /// </summary>
         [ConfigurationProperty("serializerType")]
@@ -40,8 +60,20 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["serializerType"] = value;
             }
         }
-    }
 
+        [ConfigurationProperty("producer")]
+        public ProducerConfiguration ProducerConfig
+        {
+            get
+            {
+                return (ProducerConfiguration)this["producer"];
+            }
+            set
+            {
+                this["producer"] = value;
+            }
+        }
+    }
     public class ExchangeConfigurationCollection : ConfigurationElementCollection
     {
         public new ExchangeConfiguration this[string exchangeName]

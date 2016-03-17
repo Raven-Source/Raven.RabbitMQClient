@@ -76,6 +76,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 端口
         /// </summary>
         [ConfigurationProperty("port")]
+        [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
         public int? Port
         {
             get

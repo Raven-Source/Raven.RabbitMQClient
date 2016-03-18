@@ -23,36 +23,79 @@ namespace Raven.Message.RabbitMQ
 
         internal ClientConfiguration Config { get; set; }
 
+        internal ChannelManager Channel { get; set; }
+
         static Dictionary<string, Client> _instances = new Dictionary<string, Client>();
+        static bool _inited = false;
 
         public static Client GetInstance(string brokerName)
         {
-            return _instances[brokerName];
+            if (_instances != null)
+                return _instances[brokerName];
+            return null;
         }
 
         public static void Init()
         {
-            string logType = ClientConfiguration.Instance.LogType;
-            Log = Activator.CreateInstance(Type.GetType(logType)) as ILog;
-            if (ClientConfiguration.Instance.Brokers == null)
-            {
-                Log.LogError("no broker configed", null, null);
+            Init(ClientConfiguration.Instance);
+        }
+
+        public static void Init(string configFile, string section = "ravenRabbitMQ")
+        {
+            Init(ClientConfiguration.LoadFrom(configFile, section));
+        }
+
+        public static void Init(ClientConfiguration rabbitMqClientConfig)
+        {
+            if (_inited)
                 return;
-            }
-            foreach (BrokerConfiguration brokerConfig in ClientConfiguration.Instance.Brokers)
+            lock(_instances)
             {
-                Client instance = new Client(brokerConfig);
-                _instances.Add(brokerConfig.Name, instance);
+                if (_inited)
+                    return;
+                if (rabbitMqClientConfig == null)
+                    rabbitMqClientConfig = ClientConfiguration.Instance;
+                if (rabbitMqClientConfig == null)
+                    throw new ArgumentNullException("rabbitMqClientConfig");
+                string logType = rabbitMqClientConfig.LogType;
+                Log = Activator.CreateInstance(Type.GetType(logType)) as ILog;
+                if (rabbitMqClientConfig.Brokers == null)
+                {
+                    Log.LogError("no broker configed", null, null);
+                    return;
+                }
+                foreach (BrokerConfiguration brokerConfig in rabbitMqClientConfig.Brokers)
+                {
+                    Client instance = new Client(brokerConfig);
+                    _instances.Add(brokerConfig.Name, instance);
+                }
+                _inited = true;
+                Log.LogDebug("Client init complete", null);
             }
-            Log.LogDebug("Client init complete", null);
+        }
+
+        public static void Dispose()
+        {
+            Dictionary<string, Client> copy = _instances;
+            _instances = null;
+            foreach (string clientId in copy.Keys)
+            {
+                Client client = copy[clientId];
+                client.DisposeClient();
+            }
         }
 
         internal Client(BrokerConfiguration brokerConfig)
         {
             BrokerConfig = brokerConfig;
-            ChannelManager channelManager = new ChannelManager(Log, brokerConfig);
+            Channel = Factory.CreateChannel(Log, brokerConfig);
             Producer = Factory.CreateProducer(Log, brokerConfig);
             Consumer = Factory.CreateConsumer(this, Log, brokerConfig);
+        }
+
+        internal void DisposeClient()
+        {
+            Channel.Release();
         }
     }
 }

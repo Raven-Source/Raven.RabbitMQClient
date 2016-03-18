@@ -64,9 +64,10 @@ namespace Raven.Message.RabbitMQ
                 ConnectionShutdown(sender, e);
         }
 
-        void Release()
+        internal void Release()
         {
             _connection.ConnectionShutdown -= OnConnectionShutdown;
+            _connection.Close();
             _connection = null;
             _channelQueue = new ConcurrentQueue<IModel>();
             _state = State_Release;

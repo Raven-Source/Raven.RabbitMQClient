@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,6 +22,17 @@ namespace Raven.Message.RabbitMQ.Configuration
                 }
                 return _instance;
             }
+        }
+
+        public static ClientConfiguration LoadFrom(string file, string section)
+        {
+            if (!File.Exists(file))
+                return null;
+            var fileMap = new ExeConfigurationFileMap();
+            fileMap.ExeConfigFilename = file;
+            var config = ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
+            var configSource = config.GetSection(section) as ClientConfiguration;
+            return configSource;
         }
 
         /// <summary>

@@ -76,7 +76,6 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 端口
         /// </summary>
         [ConfigurationProperty("port")]
-        [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
         public int? Port
         {
             get
@@ -109,7 +108,17 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// </summary>
         [ConfigurationProperty("exchanges")]
         [ConfigurationCollection(typeof(ExchangeConfiguration), AddItemName = "exchange")]
-        public ExchangeConfigurationCollection ExchangeConfigs { get; set; }
+        public ExchangeConfigurationCollection ExchangeConfigs
+        {
+            get
+            {
+                return (ExchangeConfigurationCollection)this["exchanges"];
+            }
+            set
+            {
+                this["exchanges"] = value;
+            }
+        }
     }
 
     public class BrokerConfigurationCollection : ConfigurationElementCollection

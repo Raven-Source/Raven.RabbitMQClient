@@ -40,7 +40,7 @@ namespace Raven.Message.RabbitMQ
             _declaredExchange = new List<string>(_brokerConfig.ExchangeConfigs.Count);
         }
 
-        internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig)
+        internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig, string bindToExchange = null, string bindMessageKeyPattern = null)
         {
             if (_declaredQueue.Contains(queue))
                 return;
@@ -73,23 +73,36 @@ namespace Raven.Message.RabbitMQ
                             parms = new Dictionary<string, object>();
                         parms.Add("x-message-ttl", queueConfig.Expiration);
                     }
+                    if (string.IsNullOrEmpty(bindToExchange) && !string.IsNullOrEmpty(queueConfig.BindToExchange))
+                    {
+                        bindToExchange = queueConfig.BindToExchange;
+                    }
+                    if (string.IsNullOrEmpty(bindMessageKeyPattern) && !string.IsNullOrEmpty(queueConfig.BindMessageKeyPattern))
+                    {
+                        bindMessageKeyPattern = queueConfig.BindMessageKeyPattern;
+                    }
                 }
                 try
                 {
                     channel.QueueDeclare(queue, durable, false, autoDelete, parms);
                 }
-                catch (OperationInterruptedException)
+                catch (OperationInterruptedException ex)
                 {
                     if (queueConfig != null && queueConfig.RedeclareWhenFailed)
                     {
                         channel.QueueDelete(queue);
                         channel.QueueDeclare(queue, queueConfig.Durable, false, queueConfig.AutoDelete, parms);
                     }
+                    else
+                    {
+                        //_log.LogError(string.Format("DeclareQueue failed, {0}", queue), ex, null);
+                        throw;
+                    }
                 }
 
-                if (queueConfig != null && !string.IsNullOrEmpty(queueConfig.BindToExchange))
+                if (!string.IsNullOrEmpty(bindToExchange))
                 {
-                    DeclareBind(channel, queue, queueConfig.BindToExchange, queueConfig.BindMessageKey);
+                    DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
                 }
                 _declaredQueue.Add(queue);
             }
@@ -103,29 +116,37 @@ namespace Raven.Message.RabbitMQ
             {
                 if (_declaredExchange.Contains(exchange))
                     return;
-                try
+                string exchangeType = "topic";
+                if (exchangeConfig != null && !string.IsNullOrEmpty(exchangeConfig.ExchangeType))
                 {
-                    string exchangeType = "topic";
-                    if (exchangeConfig != null&&!string.IsNullOrEmpty(exchangeConfig.ExchangeType))
-                    {
-                        exchangeType = exchangeConfig.ExchangeType;
-                    }
-                    channel.ExchangeDeclare(exchange, exchangeType, true, false, null);
+                    exchangeType = exchangeConfig.ExchangeType;
                 }
-                catch (OperationInterruptedException)
-                {
-                }
+                channel.ExchangeDeclare(exchange, exchangeType, true, false, null);
             }
         }
 
         internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
+            channel.QueueBind(queue, exchange, routingKey);
+        }
+
+        internal bool ExistQueue(string queue, IModel channel)
+        {
+            if (_declaredQueue.Contains(queue))
+            {
+                return true;
+            }
+            bool exist = false;
             try
             {
-                channel.QueueBind(queue, exchange, routingKey);
+                channel.QueueDeclarePassive(queue);
+                exist = true;
             }
-            catch (OperationInterruptedException)
-            { }
+            catch (OperationInterruptedException ex)
+            {
+                exist = ex.ShutdownReason.ReplyCode != 404;
+            }
+            return exist;
         }
     }
 }

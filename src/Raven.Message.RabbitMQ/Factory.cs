@@ -50,7 +50,7 @@ namespace Raven.Message.RabbitMQ
             return _facilities[brokerConfig.Name];
         }
 
-        static ChannelManager CreateChannel(ILog log, BrokerConfiguration brokerConfig)
+        internal static ChannelManager CreateChannel(ILog log, BrokerConfiguration brokerConfig)
         {
             if (!_channels.ContainsKey(brokerConfig.Name))
             {

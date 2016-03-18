@@ -128,10 +128,10 @@ namespace Raven.Message.RabbitMQ.Configuration
         [ConfigurationProperty("bindToExchange")]
         public string BindToExchange { get; set; }
         /// <summary>
-        /// 绑定消息关键字
+        /// 绑定消息关键字模式
         /// </summary>
-        [ConfigurationProperty("bindMessageKey")]
-        public string BindMessageKey { get; set; }
+        [ConfigurationProperty("bindMessageKeyPattern")]
+        public string BindMessageKeyPattern { get; set; }
         #endregion
 
         /// <summary>

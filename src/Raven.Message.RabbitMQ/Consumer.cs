@@ -38,6 +38,11 @@ namespace Raven.Message.RabbitMQ
         /// <returns>消息</returns>
         public T ReceiveAndComplete<T>(string queue)
         {
+            if (string.IsNullOrEmpty(queue))
+            {
+                Log.LogError("ReceiveAndComplete queue is null", null, null);
+                return default(T);
+            }
             T result = default(T);
             IModel channel = Channel.GetChannel();
             if (channel == null)
@@ -47,7 +52,6 @@ namespace Raven.Message.RabbitMQ
             try
             {
                 QueueConfiguration queueConfig = BrokerConfig.QueueConfigs[queue];
-                Facility.DeclareQueue(queue, channel, queueConfig);
                 BasicGetResult getResult = channel.BasicGet(queue, true);
                 if (getResult != null)
                 {
@@ -73,7 +77,15 @@ namespace Raven.Message.RabbitMQ
         public List<T> ReceiveAndComplete<T>(string queue, int count)
         {
             if (count <= 0)
+            {
+                Log.LogError("ReceiveAndComplete count<=0", null, null);
                 return null;
+            }
+            if (string.IsNullOrEmpty(queue))
+            {
+                Log.LogError("ReceiveAndComplete queue is null", null, null);
+                return null;
+            }
 
             IModel channel = Channel.GetChannel();
             if (channel == null)
@@ -85,7 +97,6 @@ namespace Raven.Message.RabbitMQ
             try
             {
                 QueueConfiguration queueConfig = BrokerConfig.QueueConfigs[queue];
-                Facility.DeclareQueue(queue, channel, queueConfig);
                 for (; i < count; i++)
                 {
                     BasicGetResult getResult = channel.BasicGet(queue, true);
@@ -111,49 +122,59 @@ namespace Raven.Message.RabbitMQ
             }
             return result;
         }
-
         /// <summary>
-        /// 注册消息队列事件，队列收到消息后触发
+        /// 订阅消息队列，队列收到消息后触发消息回调，消息回调构造回复消息，发送给回复队列
         /// 若回调方法未处理完成消息，消息将会被再次触发
         /// 回调方法在线程池中被调用，需要线程安全
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="callback"></param>
-        /// <param name="queue"></param>
-        /// <returns></returns>
-        public bool OnReceive<T>(MessageReceived<T> callback, string queue)
+        /// <typeparam name="TMessage">消息类型</typeparam>
+        /// <typeparam name="TReply">回复消息类型</typeparam>
+        /// <param name="queue">队列名</param>
+        /// <param name="callback">消息回调</param>
+        /// <returns>订阅成功</returns>
+        public bool OnReceive<TMessage, TReply>(string queue, MessageReceived<TMessage, TReply> callback)
         {
-            return BindQueueEvent((ea, queueConfig, channel) =>
-            {
-                CommonHandler(callback, ea, queueConfig, channel);
-            }, queue);
-        }
-
-        public bool OnReceive<TMessage, TReply>(MessageReceived<TMessage, TReply> callback, string queue)
-        {
-            return BindQueueEvent((ea, queueConfig, channel) =>
-            {
-                ReplyHandler<TMessage, TReply>(callback, ea, queueConfig, channel);
-            }, queue);
+            return BindQueueEvent(queue, null, null, (ea, queueConfig, channel) =>
+             {
+                 ReplyHandler<TMessage, TReply>(callback, ea, queueConfig, channel);
+             });
         }
         /// <summary>
-        /// 订阅消息队列
+        /// 订阅消息队列，队列收到消息后触发消息回调
+        /// 若回调方法未处理完成消息，消息将会被再次触发
+        /// 回调方法在线程池中被调用，需要线程安全
         /// </summary>
         /// <typeparam name="T">消息类型</typeparam>
         /// <param name="callback">消息回调</param>
         /// <param name="queue">队列名</param>
-        /// <param name="autoComplete">接收消息自动完成</param>
-        /// <param name="messageKey">消息关键字</param>
-        /// <returns></returns>
-        public bool Subscribe<T>(MessageReceived<T> callback, string queue)
+        /// <returns>订阅成功</returns>
+        public bool OnReceive<T>(string queue, MessageReceived<T> callback)
         {
-            return BindQueueEvent((ea, queueConfig, channel) =>
-            {
-                CommonHandler(callback, ea, queueConfig, channel);
-            }, queue);
+            return BindQueueEvent(queue, null, null, (ea, queueConfig, channel) =>
+             {
+                 CommonHandler(callback, ea, queueConfig, channel);
+             });
+        }
+        /// <summary>
+        /// 订阅消息队列，队列收到消息后触发消息回调
+        /// 若回调方法未处理完成消息，消息将会被再次触发
+        /// 回调方法在线程池中被调用，需要线程安全
+        /// </summary>
+        /// <typeparam name="T">消息类型</typeparam>
+        /// <param name="exchange">路由器名</param>
+        /// <param name="queue">队列名</param>
+        /// <param name="messageKeyPattern">消息关键字模式</param>
+        /// <param name="callback">消息回调</param>
+        /// <returns>订阅成功</returns>
+        public bool Subscribe<T>(string exchange, string queue, string messageKeyPattern, MessageReceived<T> callback)
+        {
+            return BindQueueEvent(queue, exchange, messageKeyPattern, (ea, queueConfig, channel) =>
+              {
+                  CommonHandler(callback, ea, queueConfig, channel);
+              });
         }
 
-        private bool BindQueueEvent(Action<BasicDeliverEventArgs, QueueConfiguration, IModel> handler, string queue)
+        private bool BindQueueEvent(string queue, string exchange, string messageKeyPattern, Action<BasicDeliverEventArgs, QueueConfiguration, IModel> handler)
         {
             IModel channel = Channel.GetChannel();
             if (channel == null)
@@ -168,7 +189,7 @@ namespace Raven.Message.RabbitMQ
                 {
                     Log.LogDebug(string.Format("BindQueueEvent queue config is empty, {0}", queue), null);
                 }
-                Facility.DeclareQueue(queue, channel, queueConfig);
+                Facility.DeclareQueue(queue, channel, queueConfig, exchange, messageKeyPattern);
                 ushort workerCount = 10;
                 if (queueConfig != null && queueConfig.ConsumerConfig != null)
                 {
@@ -178,7 +199,9 @@ namespace Raven.Message.RabbitMQ
                 var consumer = new EventingBasicConsumer(channel);
                 consumer.Received += (model, ea) =>
                 {
-                    handler(ea, queueConfig, model as IModel);
+                    EventingBasicConsumer c = model as EventingBasicConsumer;
+                    IModel ch = c.Model;
+                    handler(ea, queueConfig, ch);
                 };
 
                 channel.BasicConsume(queue: queue, noAck: NoAck(queueConfig), consumer: consumer);

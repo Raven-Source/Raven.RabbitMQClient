@@ -42,6 +42,11 @@ namespace Raven.Message.RabbitMQ
         /// <param name="option">附加参数 <see cref="Raven.Message.RabbitMQ.SendOption"/></param>
         public bool Send<T>(T message, string queue, SendOption option = null)
         {
+            if (string.IsNullOrEmpty(queue))
+            {
+                Log.LogError("Send queue is null", null, message);
+                return false;
+            }
             return SendInternal(message, queue, option, true);
         }
         /// <summary>
@@ -53,6 +58,11 @@ namespace Raven.Message.RabbitMQ
         /// <param name="option">附加参数 <see cref="Raven.Message.RabbitMQ.SendOption"/></param>
         public void SendToBuff<T>(T message, string queue, SendOption option = null)
         {
+            if (string.IsNullOrEmpty(queue))
+            {
+                Log.LogError("SendToBuff queue is null", null, message);
+                return;
+            }
             BuffProducer producer = GetBuffProducer(queue, ProducerType_Sender);
             producer.SendToBuff(message, queue, option);
         }
@@ -63,8 +73,13 @@ namespace Raven.Message.RabbitMQ
         /// <param name="message">消息</param>
         /// <param name="exchange">路由器名</param>
         /// <param name="messageKey">消息关键字，若关键字有多个请用.分割</param>
-        public bool Publish<T>(T message, string exchange, string messageKey = null)
+        public bool Publish<T>(T message, string exchange, string messageKey = "")
         {
+            if (string.IsNullOrEmpty(exchange))
+            {
+                Log.LogError("Publish exchange is null", null, message);
+                return false;
+            }
             return PublishInternal<T>(message, exchange, messageKey, true);
         }
         /// <summary>
@@ -74,8 +89,13 @@ namespace Raven.Message.RabbitMQ
         /// <param name="message">消息</param>
         /// <param name="exchange">路由器名</param>
         /// <param name="messageKey">消息关键字，若关键字有多个请用.分割</param>
-        public void PublishToBuff<T>(T message, string exchange, string messageKey = null)
+        public void PublishToBuff<T>(T message, string exchange, string messageKey = "")
         {
+            if (string.IsNullOrEmpty(exchange))
+            {
+                Log.LogError("PublishToBuff exchange is null", null, message);
+                return;
+            }
             BuffProducer buffProducer = GetBuffProducer(exchange, ProducerType_Publisher);
             buffProducer.PublishToBuff<T>(message, exchange, messageKey);
         }
@@ -85,8 +105,10 @@ namespace Raven.Message.RabbitMQ
             QueueConfiguration queueConfig = null;
             if (BrokerConfig.QueueConfigs != null)
                 queueConfig = BrokerConfig.QueueConfigs[queue];
-            Log.LogDebug(string.Format("queue config not found, {0}", queue), message);
-
+            if (queueConfig == null)
+            {
+                Log.LogDebug(string.Format("queue config not found, {0}", queue), message);
+            }
             IModel channel = Channel.GetChannel();
             if (channel == null)
                 return false;
@@ -125,7 +147,7 @@ namespace Raven.Message.RabbitMQ
                     }
                 }
 
-                bool success = DoSend(body, null, queue, channel, doConfirm, confirmTimeout, persistent, replyTo, priority, messageId, correlationId);
+                bool success = DoSend(body, "", queue, channel, doConfirm, confirmTimeout, persistent, replyTo, priority, messageId, correlationId);
                 if (success)
                 {
                     Log.LogDebug(string.Format("send success, {0}", queue), message);

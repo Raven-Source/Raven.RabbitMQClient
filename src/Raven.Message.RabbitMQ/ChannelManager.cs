@@ -27,6 +27,11 @@ namespace Raven.Message.RabbitMQ
         const int State_Init = 1;
         const int State_Release = 2;
 
+        internal IConnection Connection
+        {
+            get { return _connection; }
+        }
+
         internal event EventHandler<ShutdownEventArgs> ConnectionShutdown;
 
         internal ChannelManager(ILog log, BrokerConfiguration brokerConfig)

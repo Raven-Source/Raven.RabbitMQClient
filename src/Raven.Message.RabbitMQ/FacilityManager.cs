@@ -40,7 +40,7 @@ namespace Raven.Message.RabbitMQ
             _declaredExchange = new List<string>(_brokerConfig.ExchangeConfigs.Count);
         }
 
-        internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig, string bindToExchange = null, string bindMessageKeyPattern = null)
+        internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig)
         {
             if (_declaredQueue.Contains(queue))
                 return;
@@ -73,20 +73,13 @@ namespace Raven.Message.RabbitMQ
                             parms = new Dictionary<string, object>();
                         parms.Add("x-message-ttl", queueConfig.Expiration);
                     }
-                    if (string.IsNullOrEmpty(bindToExchange) && !string.IsNullOrEmpty(queueConfig.BindToExchange))
-                    {
-                        bindToExchange = queueConfig.BindToExchange;
-                    }
-                    if (string.IsNullOrEmpty(bindMessageKeyPattern) && !string.IsNullOrEmpty(queueConfig.BindMessageKeyPattern))
-                    {
-                        bindMessageKeyPattern = queueConfig.BindMessageKeyPattern;
-                    }
                 }
                 try
                 {
                     channel.QueueDeclare(queue, durable, false, autoDelete, parms);
+                    _log.LogDebug($"declare queue {queue}, durable:{durable}, autoDelete:{autoDelete}, parms:{string.Join(";", parms.Select(p => p.Key + p.Value))}", null);
                 }
-                catch (OperationInterruptedException ex)
+                catch (OperationInterruptedException)
                 {
                     if (queueConfig != null && queueConfig.RedeclareWhenFailed)
                     {
@@ -99,12 +92,24 @@ namespace Raven.Message.RabbitMQ
                         throw;
                     }
                 }
-
-                if (!string.IsNullOrEmpty(bindToExchange))
-                {
-                    DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
-                }
                 _declaredQueue.Add(queue);
+            }
+        }
+
+        internal void DeclareQueueAndBindExchange(string queue, IModel channel, QueueConfiguration queueConfig, string bindToExchange, string bindMessageKeyPattern)
+        {
+            DeclareQueue(queue, channel, queueConfig);
+            if (string.IsNullOrEmpty(bindToExchange) && !string.IsNullOrEmpty(queueConfig?.BindToExchange))
+            {
+                bindToExchange = queueConfig.BindToExchange;
+            }
+            if (string.IsNullOrEmpty(bindMessageKeyPattern) && !string.IsNullOrEmpty(queueConfig?.BindMessageKeyPattern))
+            {
+                bindMessageKeyPattern = queueConfig.BindMessageKeyPattern;
+            }
+            if (!string.IsNullOrEmpty(bindToExchange))
+            {
+                DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
             }
         }
 
@@ -122,12 +127,14 @@ namespace Raven.Message.RabbitMQ
                     exchangeType = exchangeConfig.ExchangeType;
                 }
                 channel.ExchangeDeclare(exchange, exchangeType, true, false, null);
+                _log.LogDebug($"declare exchange {exchange}, exchangeType:{exchangeType}", null);
             }
         }
 
         internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
             channel.QueueBind(queue, exchange, routingKey);
+            _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
         }
 
         internal bool ExistQueue(string queue, IModel channel)

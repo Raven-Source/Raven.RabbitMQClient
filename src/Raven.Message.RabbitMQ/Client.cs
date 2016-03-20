@@ -1,4 +1,5 @@
-﻿using Raven.Message.RabbitMQ.Abstract;
+﻿using RabbitMQ.Client;
+using Raven.Message.RabbitMQ.Abstract;
 using Raven.Message.RabbitMQ.Configuration;
 using System;
 using System.Collections.Generic;
@@ -13,11 +14,16 @@ namespace Raven.Message.RabbitMQ
     /// </summary>
     public class Client
     {
-        public Producer Producer { get; set; }
+        public Producer Producer { get; }
 
-        public Consumer Consumer { get; set; }
+        public Consumer Consumer { get; }
 
-        public BrokerConfiguration BrokerConfig { get; set; }
+        public BrokerConfiguration BrokerConfig { get; }
+
+        public IConnection Connection
+        {
+            get { return Channel.Connection; }
+        }
 
         public static ILog Log { get; set; }
 
@@ -49,7 +55,7 @@ namespace Raven.Message.RabbitMQ
         {
             if (_inited)
                 return;
-            lock(_instances)
+            lock (_instances)
             {
                 if (_inited)
                     return;

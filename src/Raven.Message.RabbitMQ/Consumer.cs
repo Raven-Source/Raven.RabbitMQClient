@@ -16,6 +16,7 @@ namespace Raven.Message.RabbitMQ
     /// </summary>
     public class Consumer
     {
+        internal const ushort DefaultMaxWorker = 10;
         internal BrokerConfiguration BrokerConfig { get; set; }
 
         internal FacilityManager Facility { get; set; }
@@ -189,8 +190,11 @@ namespace Raven.Message.RabbitMQ
                 {
                     Log.LogDebug(string.Format("BindQueueEvent queue config is empty, {0}", queue), null);
                 }
-                Facility.DeclareQueue(queue, channel, queueConfig, exchange, messageKeyPattern);
-                ushort workerCount = 10;
+                if (!string.IsNullOrEmpty(exchange))
+                {
+                    Facility.DeclareQueueAndBindExchange(queue, channel, queueConfig, exchange, messageKeyPattern);
+                }
+                ushort workerCount = DefaultMaxWorker;
                 if (queueConfig != null && queueConfig.ConsumerConfig != null)
                 {
                     workerCount = queueConfig.ConsumerConfig.MaxWorker;
@@ -218,11 +222,12 @@ namespace Raven.Message.RabbitMQ
         {
             var body = ea.Body;
             T message = DeserializeMessage<T>(body, queueConfig?.SerializerType);
+            Log.LogDebug("message received", message);
             if (NoAck(queueConfig))
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
-            else if (callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId))
+            else if (callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea))
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
@@ -232,12 +237,13 @@ namespace Raven.Message.RabbitMQ
         {
             var body = ea.Body;
             TMessage message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
+            Log.LogDebug("message received", message);
             bool noAck = NoAck(queueConfig);
             if (noAck)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
-            TReply reply = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId);
+            TReply reply = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
             if (!noAck)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);

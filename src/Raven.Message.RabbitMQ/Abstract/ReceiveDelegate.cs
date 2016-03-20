@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RabbitMQ.Client.Events;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +16,7 @@ namespace Raven.Message.RabbitMQ.Abstract
     /// <param name="messageId">消息标识</param>
     /// <param name="correlationId">关联标识</param>
     /// <returns>消息处理完成</returns>
-    public delegate bool MessageReceived<T>(T message, string messageKey, string messageId, string correlationId);
+    public delegate bool MessageReceived<T>(T message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args);
 
     /// <summary>
     /// 处理消息并构造响应消息
@@ -27,5 +28,5 @@ namespace Raven.Message.RabbitMQ.Abstract
     /// <param name="messageId">消息标识</param>
     /// <param name="correlationId">关联标识</param>
     /// <returns>响应消息</returns>
-    public delegate TReply MessageReceived<TMessage, TReply>(TMessage message, string messageKey, string messageId, string correlationId);
+    public delegate TReply MessageReceived<TMessage, TReply>(TMessage message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args);
 }

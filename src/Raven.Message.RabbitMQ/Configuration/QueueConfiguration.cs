@@ -222,7 +222,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// <summary>
         /// 最多同时处理消息数量，默认值10
         /// </summary>
-        [ConfigurationProperty("maxWorker", DefaultValue = 10)]
+        [ConfigurationProperty("maxWorker", DefaultValue = Consumer.DefaultMaxWorker)]
         [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
         public ushort MaxWorker
         {

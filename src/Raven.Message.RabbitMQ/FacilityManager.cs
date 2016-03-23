@@ -40,7 +40,7 @@ namespace Raven.Message.RabbitMQ
             _declaredExchange = new List<string>(_brokerConfig.ExchangeConfigs.Count);
         }
 
-        internal void DeclareQueue(string queue, IModel channel, QueueConfiguration queueConfig)
+        internal void DeclareQueue(string queue, ref IModel channel, QueueConfiguration queueConfig)
         {
             if (_declaredQueue.Contains(queue))
                 return;
@@ -77,12 +77,14 @@ namespace Raven.Message.RabbitMQ
                 try
                 {
                     channel.QueueDeclare(queue, durable, false, autoDelete, parms);
-                    _log.LogDebug($"declare queue {queue}, durable:{durable}, autoDelete:{autoDelete}, parms:{string.Join(";", parms.Select(p => p.Key + p.Value))}", null);
+                    string parmStr = parms == null ? "" : string.Join("; ", parms.Select(p => p.Key + p.Value));
+                    _log.LogDebug($"declare queue {queue}, durable:{durable}, autoDelete:{autoDelete}, parms:{parmStr}", null);
                 }
                 catch (OperationInterruptedException)
                 {
                     if (queueConfig != null && queueConfig.RedeclareWhenFailed)
                     {
+                        channel = _channelManager.GetChannel();
                         channel.QueueDelete(queue);
                         channel.QueueDeclare(queue, queueConfig.Durable, false, queueConfig.AutoDelete, parms);
                     }
@@ -96,9 +98,9 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        internal void DeclareQueueAndBindExchange(string queue, IModel channel, QueueConfiguration queueConfig, string bindToExchange, string bindMessageKeyPattern)
+        internal void DeclareQueueAndBindExchange(string queue, ref IModel channel, QueueConfiguration queueConfig, string bindToExchange, string bindMessageKeyPattern)
         {
-            DeclareQueue(queue, channel, queueConfig);
+            DeclareQueue(queue, ref channel, queueConfig);
             if (string.IsNullOrEmpty(bindToExchange) && !string.IsNullOrEmpty(queueConfig?.BindToExchange))
             {
                 bindToExchange = queueConfig.BindToExchange;

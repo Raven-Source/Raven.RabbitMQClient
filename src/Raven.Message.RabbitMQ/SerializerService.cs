@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Raven.Message.RabbitMQ
 {
-    class SerializerService
+    public class SerializerService
     {
         static List<Tuple<SerializerType, IDataSerializer>> Serizlizers = new List<Tuple<SerializerType, IDataSerializer>>(8);
 

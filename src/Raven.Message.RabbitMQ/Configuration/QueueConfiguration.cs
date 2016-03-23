@@ -64,11 +64,11 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// </summary>
         [ConfigurationProperty("maxPriority", DefaultValue = 0)]
         [IntegerValidator(ExcludeRange = false, MaxValue = 10, MinValue = 0)]
-        public byte MaxPriority
+        public int MaxPriority
         {
             get
             {
-                return (byte)this["maxPriority"];
+                return (int)this["maxPriority"];
             }
             set
             {
@@ -79,7 +79,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 过期时间，毫秒为单位，在定义队列时加入x-message-ttl参数
         /// </summary>
         [ConfigurationProperty("expiration")]
-        [LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
+        //[LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
         public uint? Expiration
         {
             get
@@ -95,7 +95,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 最大长度，当达到最大长度后开始从头部删除消息
         /// </summary>
         [ConfigurationProperty("maxLength")]
-        [LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
+        //[LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
         public uint? MaxLength
         {
             get
@@ -224,11 +224,11 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// </summary>
         [ConfigurationProperty("maxWorker", DefaultValue = Consumer.DefaultMaxWorker)]
         [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
-        public ushort MaxWorker
+        public int MaxWorker
         {
             get
             {
-                return (ushort)this["maxWorker"];
+                return (int)this["maxWorker"];
             }
             set
             {

@@ -16,7 +16,7 @@ namespace Raven.Message.RabbitMQ
     /// </summary>
     public class Consumer
     {
-        internal const ushort DefaultMaxWorker = 10;
+        internal const int DefaultMaxWorker = 10;
         internal BrokerConfiguration BrokerConfig { get; set; }
 
         internal FacilityManager Facility { get; set; }
@@ -192,14 +192,14 @@ namespace Raven.Message.RabbitMQ
                 }
                 if (!string.IsNullOrEmpty(exchange))
                 {
-                    Facility.DeclareQueueAndBindExchange(queue, channel, queueConfig, exchange, messageKeyPattern);
+                    Facility.DeclareQueueAndBindExchange(queue, ref channel, queueConfig, exchange, messageKeyPattern);
                 }
-                ushort workerCount = DefaultMaxWorker;
+                int workerCount = DefaultMaxWorker;
                 if (queueConfig != null && queueConfig.ConsumerConfig != null)
                 {
                     workerCount = queueConfig.ConsumerConfig.MaxWorker;
                 }
-                channel.BasicQos(prefetchSize: 0, prefetchCount: workerCount, global: false);
+                channel.BasicQos(prefetchSize: 0, prefetchCount: (ushort)workerCount, global: false);
                 var consumer = new EventingBasicConsumer(channel);
                 consumer.Received += (model, ea) =>
                 {

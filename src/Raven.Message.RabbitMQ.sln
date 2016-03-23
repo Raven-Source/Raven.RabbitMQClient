@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raven.Message.RabbitMQ", "R
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raven.Message.RabbitMQ.Demo", "Raven.Message.RabbitMQ.Demo\Raven.Message.RabbitMQ.Demo.csproj", "{F28161AC-EDCD-488E-976A-FFBBC25F96B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raven.Message.RabbitMQTests", "Raven.Message.RabbitMQTests\Raven.Message.RabbitMQTests.csproj", "{9E390E23-C5A5-4C9C-BA19-7F3DE4B8E777}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{F28161AC-EDCD-488E-976A-FFBBC25F96B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F28161AC-EDCD-488E-976A-FFBBC25F96B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F28161AC-EDCD-488E-976A-FFBBC25F96B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E390E23-C5A5-4C9C-BA19-7F3DE4B8E777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E390E23-C5A5-4C9C-BA19-7F3DE4B8E777}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E390E23-C5A5-4C9C-BA19-7F3DE4B8E777}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E390E23-C5A5-4C9C-BA19-7F3DE4B8E777}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

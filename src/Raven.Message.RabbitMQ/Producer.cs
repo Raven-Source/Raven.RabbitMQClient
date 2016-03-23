@@ -114,14 +114,14 @@ namespace Raven.Message.RabbitMQ
                 return false;
             try
             {
-                Facility.DeclareQueue(queue, channel, queueConfig);
+                Facility.DeclareQueue(queue, ref channel, queueConfig);
                 byte[] body = SerializeMessage(message, queueConfig?.SerializerType);
                 bool doConfirm = false;
-                uint confirmTimeout = 0;
+                int confirmTimeout = 0;
                 bool persistent = false;
 
                 string replyTo = null;
-                byte priority = 0;
+                int priority = 0;
                 string messageId = null;
                 string correlationId = null;
 
@@ -185,7 +185,7 @@ namespace Raven.Message.RabbitMQ
                 Facility.DeclareExchange(exchange, channel, exchangeConfig);
                 byte[] body = SerializeMessage(message, exchangeConfig?.SerializerType);
                 bool doConfirm = false;
-                uint confirmTimeout = 0;
+                int confirmTimeout = 0;
                 bool persistent = false;
                 FindProducerOptions(exchangeConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent);
                 bool success = DoSend(body, exchange, messageKey, channel, doConfirm, confirmTimeout, persistent);
@@ -207,7 +207,7 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private void FindProducerOptions(ProducerConfiguration config, bool sync, out bool doConfirm, out uint confirmTimeout, out bool persistent)
+        private void FindProducerOptions(ProducerConfiguration config, bool sync, out bool doConfirm, out int confirmTimeout, out bool persistent)
         {
             doConfirm = false;
             confirmTimeout = 0;
@@ -220,7 +220,7 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private bool DoSend(byte[] message, string exchange, string routingKey, IModel channel, bool doConfirm = false, uint confirmTimeout = 0, bool persistent = false, string replyTo = null, byte priority = 0, string messageId = null, string correlationId = null)
+        private bool DoSend(byte[] message, string exchange, string routingKey, IModel channel, bool doConfirm = false, int confirmTimeout = 0, bool persistent = false, string replyTo = null, int priority = 0, string messageId = null, string correlationId = null)
         {
             IBasicProperties properties = null;
             if (!string.IsNullOrEmpty(replyTo) || persistent || priority > 0 || !string.IsNullOrEmpty(messageId) || !string.IsNullOrEmpty(correlationId))
@@ -228,7 +228,7 @@ namespace Raven.Message.RabbitMQ
                 properties = channel.CreateBasicProperties();
                 properties.ReplyTo = replyTo;
                 properties.Persistent = persistent;
-                properties.Priority = priority;
+                properties.Priority = (byte)priority;
                 properties.MessageId = messageId;
                 properties.CorrelationId = correlationId;
             }
@@ -280,7 +280,7 @@ namespace Raven.Message.RabbitMQ
                 {
                     if (!_buffProducerDict.ContainsKey(buffProducerName))
                     {
-                        ushort maxWorker = 1;
+                        int maxWorker = 1;
                         switch (producerType)
                         {
                             case ProducerType_Sender:
@@ -314,7 +314,7 @@ namespace Raven.Message.RabbitMQ
             private ConcurrentQueue<BuffMessage> _queue;
             private List<Thread> _workerList;
             private Producer _producer;
-            public BuffProducer(Producer producer, ushort maxWorker, int producerType)
+            public BuffProducer(Producer producer, int maxWorker, int producerType)
             {
                 _producer = producer;
                 _queue = new ConcurrentQueue<BuffMessage>();

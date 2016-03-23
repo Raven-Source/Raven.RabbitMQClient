@@ -33,12 +33,12 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 确认超时时间，单位毫秒，默认100
         /// </summary>
         [ConfigurationProperty("sendConfirmTimeout", DefaultValue = 100)]
-        [LongValidator(ExcludeRange = false, MaxValue = long.MaxValue, MinValue = 1)]
-        public uint SendConfirmTimeout
+        [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
+        public int SendConfirmTimeout
         {
             get
             {
-                return (uint)this["sendConfirmTimeout"];
+                return (int)this["sendConfirmTimeout"];
             }
             set
             {
@@ -65,11 +65,11 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// </summary>
         [ConfigurationProperty("maxWorker", DefaultValue = 1)]
         [IntegerValidator(ExcludeRange = false, MaxValue = int.MaxValue, MinValue = 1)]
-        public ushort MaxWorker
+        public int MaxWorker
         {
             get
             {
-                return (ushort)this["maxWorker"];
+                return (int)this["maxWorker"];
             }
             set
             {

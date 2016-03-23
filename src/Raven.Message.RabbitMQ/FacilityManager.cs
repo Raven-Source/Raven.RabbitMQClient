@@ -124,11 +124,18 @@ namespace Raven.Message.RabbitMQ
                 if (_declaredExchange.Contains(exchange))
                     return;
                 string exchangeType = "topic";
-                if (exchangeConfig != null && !string.IsNullOrEmpty(exchangeConfig.ExchangeType))
+                bool durable = false;
+                bool autoDelete = false;
+                if (exchangeConfig != null)
                 {
-                    exchangeType = exchangeConfig.ExchangeType;
+                    if (!string.IsNullOrEmpty(exchangeConfig.ExchangeType))
+                    {
+                        exchangeType = exchangeConfig.ExchangeType;
+                    }
+                    durable = exchangeConfig.Durable;
+                    autoDelete = exchangeConfig.AutoDelete;
                 }
-                channel.ExchangeDeclare(exchange, exchangeType, true, false, null);
+                channel.ExchangeDeclare(exchange, exchangeType, durable, autoDelete, null);
                 _log.LogDebug($"declare exchange {exchange}, exchangeType:{exchangeType}", null);
             }
         }

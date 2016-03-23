@@ -24,6 +24,13 @@ namespace Raven.Message.RabbitMQ.Tests
         {
             Client.Init();
             _client = Client.GetInstance("localhost");
+            DeleteQueue(NotExistQueue);
+            DeleteQueue(ExistQueue);
+            DeleteQueue(ConflictQueue);
+            DeleteQueue(RedeclareQueue);
+            DeleteExchange(NotExistExchange);
+            DeleteExchange(ExistExchange);
+            DeleteExchange(ConflictExchange);
         }
 
         [ClassCleanup]
@@ -131,7 +138,7 @@ namespace Raven.Message.RabbitMQ.Tests
             AssertMessageReceived(RedeclareQueue, message);
         }
 
-        private void DeleteQueue(string queue)
+        private static void DeleteQueue(string queue)
         {
             using (IModel channel = _client.Connection.CreateModel())
             {

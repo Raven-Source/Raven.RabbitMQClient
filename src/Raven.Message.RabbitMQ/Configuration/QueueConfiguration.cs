@@ -11,54 +11,10 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// <summary>
     /// 队列配置
     /// </summary>
-    public class QueueConfiguration : ConfigurationElement
+    public class QueueConfiguration : DeclareConfiguration
     {
         #region 队列定义
-        /// <summary>
-        /// 名字
-        /// </summary>
-        [ConfigurationProperty("name", IsRequired = true, IsKey = true)]
-        public string Name
-        {
-            get
-            {
-                return (string)this["name"];
-            }
-            set
-            {
-                this["name"] = value;
-            }
-        }
-        /// <summary>
-        /// 当没有消费者时，队列是否自动删除，默认不删除
-        /// </summary>
-        [ConfigurationProperty("autoDelete", DefaultValue = false)]
-        public bool AutoDelete
-        {
-            get
-            {
-                return (bool)this["autoDelete"];
-            }
-            set
-            {
-                this["autoDelete"] = value;
-            }
-        }
-        /// <summary>
-        /// 队列可重用，在消息中间件重启后队列是否还能继续使用
-        /// </summary>
-        [ConfigurationProperty("durable", DefaultValue = true)]
-        public bool Durable
-        {
-            get
-            {
-                return (bool)this["durable"];
-            }
-            set
-            {
-                this["durable"] = value;
-            }
-        }
+        
         /// <summary>
         /// 支持最大优先级，最小0，最大10，默认0
         /// </summary>

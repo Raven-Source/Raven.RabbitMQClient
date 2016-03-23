@@ -8,23 +8,8 @@ using System.Threading.Tasks;
 
 namespace Raven.Message.RabbitMQ.Configuration
 {
-    public class ExchangeConfiguration : ConfigurationElement
+    public class ExchangeConfiguration : DeclareConfiguration
     {
-        /// <summary>
-        /// 名字
-        /// </summary>
-        [ConfigurationProperty("name", IsRequired = true, IsKey = true)]
-        public string Name
-        {
-            get
-            {
-                return (string)this["name"];
-            }
-            set
-            {
-                this["name"] = value;
-            }
-        }
         /// <summary>
         /// 消息匹配类型，默认为topic
         /// fanout，所有消息会被绑定队列消费

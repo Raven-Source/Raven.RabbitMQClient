@@ -37,9 +37,9 @@ namespace Raven.MessageQueue.WithRabbitMQ
                             _connection = CreateConnection();
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-
+                        throw ex;
                     }
                     finally
                     {

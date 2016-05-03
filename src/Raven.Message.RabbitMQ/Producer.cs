@@ -114,7 +114,7 @@ namespace Raven.Message.RabbitMQ
                 return false;
             try
             {
-                Facility.DeclareQueue(queue, ref channel, queueConfig);
+                Facility.DeclareQueue(queue, ref channel, queueConfig, true);
                 byte[] body = SerializeMessage(message, queueConfig?.SerializerType);
                 bool doConfirm = false;
                 int confirmTimeout = 0;
@@ -226,11 +226,11 @@ namespace Raven.Message.RabbitMQ
             if (!string.IsNullOrEmpty(replyTo) || persistent || priority > 0 || !string.IsNullOrEmpty(messageId) || !string.IsNullOrEmpty(correlationId))
             {
                 properties = channel.CreateBasicProperties();
-                properties.ReplyTo = replyTo;
+                properties.ReplyTo = replyTo ?? "";
                 properties.Persistent = persistent;
                 properties.Priority = (byte)priority;
-                properties.MessageId = messageId;
-                properties.CorrelationId = correlationId;
+                properties.MessageId = messageId ?? "";
+                properties.CorrelationId = correlationId ?? "";
             }
             if (doConfirm)
             {
@@ -386,7 +386,7 @@ namespace Raven.Message.RabbitMQ
                             {
                                 //todo send to failed queue
                             }
-                            SpinWait.SpinUntil(() => false, 1);
+                            //SpinWait.SpinUntil(() => false, 1);
                         }
                     }
                     _resetEvent.WaitOne(10000);

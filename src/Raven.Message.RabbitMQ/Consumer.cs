@@ -177,6 +177,11 @@ namespace Raven.Message.RabbitMQ
 
         private bool BindQueueEvent(string queue, string exchange, string messageKeyPattern, Action<BasicDeliverEventArgs, QueueConfiguration, IModel> handler)
         {
+            if (string.IsNullOrEmpty(queue))
+            {
+                Log.LogError("BindQueueEvent queue is null", null, null);
+                return false;
+            }
             IModel channel = Channel.GetChannel();
             if (channel == null)
             {
@@ -194,6 +199,10 @@ namespace Raven.Message.RabbitMQ
                 {
                     Facility.DeclareQueueAndBindExchange(queue, ref channel, queueConfig, exchange, messageKeyPattern);
                 }
+                else
+                {
+                    Facility.DeclareQueue(queue, ref channel, queueConfig, false);
+                }
                 int workerCount = DefaultMaxWorker;
                 if (queueConfig != null && queueConfig.ConsumerConfig != null)
                 {
@@ -208,7 +217,7 @@ namespace Raven.Message.RabbitMQ
                     handler(ea, queueConfig, ch);
                 };
 
-                channel.BasicConsume(queue: queue, noAck: NoAck(queueConfig), consumer: consumer);
+                string result = channel.BasicConsume(queue: queue, noAck: NoAck(queueConfig), consumer: consumer);
                 return true;
             }
             catch (Exception ex)
@@ -223,11 +232,16 @@ namespace Raven.Message.RabbitMQ
             var body = ea.Body;
             T message = DeserializeMessage<T>(body, queueConfig?.SerializerType);
             Log.LogDebug("message received", message);
-            if (NoAck(queueConfig))
+            bool success = false;
+            try
             {
-                channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                success = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
             }
-            else if (callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea))
+            catch (Exception ex)
+            {
+                Log.LogError("CommonHandler callback exception", ex, message);
+            }
+            if (!NoAck(queueConfig) && success)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
@@ -239,11 +253,16 @@ namespace Raven.Message.RabbitMQ
             TMessage message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
             Log.LogDebug("message received", message);
             bool noAck = NoAck(queueConfig);
-            if (noAck)
+            TReply reply = default(TReply);
+            try
             {
-                channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                reply = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
             }
-            TReply reply = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
+            catch(Exception ex)
+            {
+                Log.LogError("ReplyHandler callback exception", ex, message);
+                return;
+            }
             if (!noAck)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);

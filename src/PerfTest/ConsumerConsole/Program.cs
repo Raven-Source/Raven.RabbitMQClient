@@ -1,0 +1,89 @@
+﻿using RabbitMQ.Client.Events;
+using Raven.Message.RabbitMQ;
+using Raven.Message.RabbitMQ.Abstract;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace ConsumerConsole
+{
+    class Program
+    {
+        static Client _client = null;
+        static long _received = 0;
+
+        static long _lastReceived = 0;
+        static Dictionary<byte, long> _priorityReceived = new Dictionary<byte, long>(10);
+
+        static void Main(string[] args)
+        {
+            Client.Init();
+            _client = Client.GetInstance("perftest");
+
+            bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+            Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
+
+            while (true)
+            {
+                Thread.Sleep(1000);
+                PrintStats();
+            }
+        }
+
+        public static bool TestQueueReceived(string message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args)
+        {
+            Interlocked.Add(ref _received, 1);
+            return true;
+        }
+
+        public static bool PriorityMessageReceived(string message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args)
+        {
+            byte priority = args.BasicProperties.Priority;
+            if (!_priorityReceived.ContainsKey(priority))
+            {
+                lock(_priorityReceived)
+                {
+                    if (!_priorityReceived.ContainsKey(priority))
+                    {
+                        _priorityReceived.Add(priority, 0);
+                    }
+                }
+            }
+            _priorityReceived[priority]++;
+            return TestQueueReceived(message, messageKey, messageId, correlationId, args);
+        }
+
+        static void PrintStats()
+        {
+            long received = _received;
+            Console.WriteLine($"{DateTime.Now}, totalReceived : {received}, lastSecondReceived : {received - _lastReceived}");
+            _lastReceived = received;
+            Dictionary<byte, long> copy = null;
+            lock (_priorityReceived)
+            {
+                copy = new Dictionary<byte, long>(_priorityReceived);
+            }
+            foreach (byte priority in copy.Keys)
+            {
+                Console.WriteLine($"{DateTime.Now}, priority {priority} : {copy[priority]}");
+            }
+        }
+    }
+
+    public class Log : ILog
+    {
+        public void LogDebug(string info, object dataObj)
+        {
+
+        }
+
+        public void LogError(string errorMessage, Exception ex, object dataObj)
+        {
+
+        }
+    }
+}

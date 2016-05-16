@@ -35,6 +35,11 @@ namespace Raven.Message.RabbitMQ.Configuration
             return configSource;
         }
 
+        public ClientConfiguration()
+        {
+            SerializerType = SerializerType.MsgPack;
+        }
+
         /// <summary>
         /// 日志实现类
         /// </summary>

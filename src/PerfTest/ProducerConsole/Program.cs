@@ -3,6 +3,7 @@ using Raven.Message.RabbitMQ.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -69,7 +70,7 @@ namespace ProducerConsole
                 {
                     try
                     {
-                        bool success = SendToQueueWithPriority();
+                        bool success = Publish();
                         if (!success)
                             failed++;
                     }
@@ -106,6 +107,11 @@ namespace ProducerConsole
             _priorityCount++;
             return _client.Producer.Send<string>(_message, "testqueue", option);
         }
+
+        static bool Publish()
+        {
+            return _client.Producer.Publish<string>(_message, "perfexchange", "test");
+        }
     }
 
     public class Log : ILog
@@ -117,7 +123,7 @@ namespace ProducerConsole
 
         public void LogError(string errorMessage, Exception ex, object dataObj)
         {
-            
+            File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "producer.log"), string.Format("{0} {1} {2} {3}{4}", DateTime.Now, errorMessage, ex, dataObj, Environment.NewLine));
         }
     }
 }

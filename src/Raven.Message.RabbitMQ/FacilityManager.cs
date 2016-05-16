@@ -143,13 +143,15 @@ namespace Raven.Message.RabbitMQ
                     autoDelete = exchangeConfig.AutoDelete;
                 }
                 channel.ExchangeDeclare(exchange, exchangeType, durable, autoDelete, null);
+                _declaredExchange.Add(exchange);
                 _log.LogDebug($"declare exchange {exchange}, exchangeType:{exchangeType}", null);
             }
         }
 
         internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
-            channel.QueueBind(queue, exchange, routingKey);
+            DeclareExchange(exchange, channel, _brokerConfig.ExchangeConfigs[exchange]);
+            channel.QueueBind(queue, exchange, routingKey ?? "");
             _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
         }
 

@@ -121,7 +121,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         }
     }
 
-    public class BrokerConfigurationCollection : ConfigurationElementCollection
+    public class BrokerConfigurationCollection : EditableConfigurationElementCollection
     {
         protected override ConfigurationElement CreateNewElement()
         {

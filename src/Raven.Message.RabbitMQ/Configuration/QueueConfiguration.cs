@@ -160,6 +160,10 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// </summary>
     public class QueueConsumerConfiguration : ConfigurationElement
     {
+        public QueueConsumerConfiguration()
+        {
+            MaxWorker = Consumer.DefaultMaxWorker;
+        }
         /// <summary>
         /// 发送消费确认，如果确认消息发送失败，消息会被重复消费
         /// </summary>
@@ -208,7 +212,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         //}
     }
 
-    public class QueueConfigurationCollection : ConfigurationElementCollection
+    public class QueueConfigurationCollection : EditableConfigurationElementCollection
     {
         public new QueueConfiguration this[string queueName]
         {

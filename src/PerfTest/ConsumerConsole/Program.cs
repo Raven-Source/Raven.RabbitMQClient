@@ -4,6 +4,7 @@ using Raven.Message.RabbitMQ.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -23,8 +24,9 @@ namespace ConsumerConsole
         {
             Client.Init();
             _client = Client.GetInstance("perftest");
-
-            bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+            
+            //bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+            bool onreceiveSuccess = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
             Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
 
             while (true)
@@ -57,6 +59,11 @@ namespace ConsumerConsole
             return TestQueueReceived(message, messageKey, messageId, correlationId, args);
         }
 
+        public static bool OnSubReceived(string message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args)
+        {
+            return TestQueueReceived(message, messageKey, messageId, correlationId, args);
+        }
+
         static void PrintStats()
         {
             long received = _received;
@@ -83,7 +90,7 @@ namespace ConsumerConsole
 
         public void LogError(string errorMessage, Exception ex, object dataObj)
         {
-
+            File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "consumer.log"), string.Format("{0} {1} {2} {3}{4}", DateTime.Now, errorMessage, ex, dataObj, Environment.NewLine));
         }
     }
 }

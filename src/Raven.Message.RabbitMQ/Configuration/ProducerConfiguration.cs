@@ -12,6 +12,11 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// </summary>
     public class ProducerConfiguration : ConfigurationElement
     {
+        public ProducerConfiguration()
+        {
+            SendConfirmTimeout = 100;
+            MaxWorker = 1;
+        }
         /// <summary>
         /// 只有当消息中间件确认已送达才算发送成功，确保消息不会因为网络或服务异常等原因造成少发的情况
         /// 在等待消息确认时有一定延迟，若超过超时时间则认为发送失败

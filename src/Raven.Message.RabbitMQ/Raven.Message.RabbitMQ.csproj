@@ -54,6 +54,7 @@
     <Compile Include="Configuration\BrokerConfiguration.cs" />
     <Compile Include="Configuration\ClientConfiguration.cs" />
     <Compile Include="Configuration\DeclareConfiguration.cs" />
+    <Compile Include="Configuration\EditableConfigurationElementCollection.cs" />
     <Compile Include="Configuration\ExchangeConfiguration.cs" />
     <Compile Include="Configuration\ProducerConfiguration.cs" />
     <Compile Include="Configuration\QueueConfiguration.cs" />

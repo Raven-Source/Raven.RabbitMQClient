@@ -17,7 +17,7 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// direct，消息关键字完全匹配
         /// topic，消息关键字模式匹配
         /// </summary>
-        [ConfigurationProperty("serializerType")]
+        [ConfigurationProperty("exchangeType")]
         public string ExchangeType
         {
             get
@@ -59,7 +59,7 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
     }
-    public class ExchangeConfigurationCollection : ConfigurationElementCollection
+    public class ExchangeConfigurationCollection : EditableConfigurationElementCollection
     {
         public new ExchangeConfiguration this[string exchangeName]
         {

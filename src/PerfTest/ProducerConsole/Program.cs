@@ -63,7 +63,7 @@ namespace ProducerConsole
             Stopwatch stopwatch = new Stopwatch();
             while (true)
             {
-                int count = 1000;
+                int count = 500;
                 int failed = 0;
                 stopwatch.Start();
                 for (int i = 0; i < count; i++)
@@ -84,7 +84,7 @@ namespace ProducerConsole
                 Interlocked.Add(ref _sendFailed, failed);
                 Interlocked.Add(ref _sendElapsedMilliseconds, stopwatch.ElapsedMilliseconds);
                 stopwatch.Reset();
-                Thread.SpinWait(1);
+                Thread.Sleep(100);
             }
         }
 

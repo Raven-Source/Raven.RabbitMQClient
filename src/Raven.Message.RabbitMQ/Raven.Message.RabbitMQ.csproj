@@ -56,6 +56,7 @@
     <Compile Include="Configuration\DeclareConfiguration.cs" />
     <Compile Include="Configuration\EditableConfigurationElementCollection.cs" />
     <Compile Include="Configuration\ExchangeConfiguration.cs" />
+    <Compile Include="Configuration\RuntimeEnviroment.cs" />
     <Compile Include="Configuration\ProducerConfiguration.cs" />
     <Compile Include="Configuration\QueueConfiguration.cs" />
     <Compile Include="ChannelManager.cs" />

@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RabbitMQ.Client;
 using Raven.Message.RabbitMQ;
+using Raven.Message.RabbitMQ.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace Raven.Message.RabbitMQ.Tests
         const string ExistQueue = "exist";
         const string ConflictQueue = "conflict";
         const string RedeclareQueue = "redeclare";
+        const string PlaceHolderQueue = "placeholder_{_IP}_{_ProcessId}";
         static Client _client = null;
 
         [ClassInitialize]
@@ -136,6 +138,19 @@ namespace Raven.Message.RabbitMQ.Tests
             _client.Producer.SendToBuff<string>(message, RedeclareQueue, null);
             Thread.Sleep(500);
             AssertMessageReceived(RedeclareQueue, message);
+        }
+        /// <summary>
+        /// 队列名占位符测试
+        /// </summary>
+        [TestMethod()]
+        public void SendToPlaceHolderQueueTest()
+        {
+            string message = "SendToPlaceHolderQueueTest";
+            bool success = _client.Producer.Send<string>(message, PlaceHolderQueue, null);
+            Assert.IsTrue(success);
+            string queue = PlaceHolderQueue.Replace("{_IP}", RuntimeEnviroment.IP).Replace("{_ProcessId}", RuntimeEnviroment.ProcessId);
+            AssertMessageReceived(queue, message);
+            DeleteQueue(queue);
         }
 
         private static void DeleteQueue(string queue)

@@ -114,7 +114,7 @@ namespace Raven.Message.RabbitMQ
                 return false;
             try
             {
-                Facility.DeclareQueue(queue, ref channel, queueConfig, true);
+                Facility.DeclareQueue(ref queue, ref channel, queueConfig, true);
                 byte[] body = SerializeMessage(message, queueConfig?.SerializerType);
                 bool doConfirm = false;
                 int confirmTimeout = 0;
@@ -182,7 +182,7 @@ namespace Raven.Message.RabbitMQ
                 return false;
             try
             {
-                Facility.DeclareExchange(exchange, channel, exchangeConfig);
+                Facility.DeclareExchange(ref exchange, channel, exchangeConfig);
                 byte[] body = SerializeMessage(message, exchangeConfig?.SerializerType);
                 bool doConfirm = false;
                 int confirmTimeout = 0;

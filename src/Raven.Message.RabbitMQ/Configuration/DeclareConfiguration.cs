@@ -24,6 +24,21 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["name"] = value;
             }
         }
+        private string _storageName;
+        /// <summary>
+        /// 存储名
+        /// </summary>
+        public string StorageName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_storageName))
+                {
+                    _storageName = Name.Replace("{_IP}", RuntimeEnviroment.IP).Replace("{_ProcessId}", RuntimeEnviroment.ProcessId);
+                }
+                return _storageName;
+            }
+        }
         /// <summary>
         /// 当没有消费者时，是否自动删除，默认不删除
         /// </summary>

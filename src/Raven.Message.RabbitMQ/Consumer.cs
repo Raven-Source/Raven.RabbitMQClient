@@ -53,6 +53,10 @@ namespace Raven.Message.RabbitMQ
             try
             {
                 QueueConfiguration queueConfig = BrokerConfig.QueueConfigs[queue];
+                if (queueConfig != null)
+                {
+                    queue = queueConfig.StorageName;
+                }
                 BasicGetResult getResult = channel.BasicGet(queue, true);
                 if (getResult != null)
                 {
@@ -98,6 +102,10 @@ namespace Raven.Message.RabbitMQ
             try
             {
                 QueueConfiguration queueConfig = BrokerConfig.QueueConfigs[queue];
+                if (queueConfig != null)
+                {
+                    queue = queueConfig.StorageName;
+                }
                 for (; i < count; i++)
                 {
                     BasicGetResult getResult = channel.BasicGet(queue, true);
@@ -197,11 +205,11 @@ namespace Raven.Message.RabbitMQ
                 }
                 if (!string.IsNullOrEmpty(exchange))
                 {
-                    Facility.DeclareQueueAndBindExchange(queue, ref channel, queueConfig, exchange, messageKeyPattern);
+                    Facility.DeclareQueueAndBindExchange(ref queue, ref channel, queueConfig, exchange, messageKeyPattern);
                 }
                 else
                 {
-                    Facility.DeclareQueue(queue, ref channel, queueConfig, false);
+                    Facility.DeclareQueue(ref queue, ref channel, queueConfig, false);
                 }
                 int workerCount = DefaultMaxWorker;
                 if (queueConfig != null && queueConfig.ConsumerConfig != null)

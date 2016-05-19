@@ -205,7 +205,7 @@ namespace Raven.Message.RabbitMQ
                 }
                 if (!string.IsNullOrEmpty(exchange))
                 {
-                    Facility.DeclareQueueAndBindExchange(ref queue, ref channel, queueConfig, exchange, messageKeyPattern);
+                    Facility.DeclareQueueAndBindExchange(ref queue, ref channel, queueConfig, ref exchange, messageKeyPattern);
                 }
                 else
                 {

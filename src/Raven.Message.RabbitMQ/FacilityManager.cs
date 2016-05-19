@@ -114,7 +114,7 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        internal void DeclareQueueAndBindExchange(ref string queue, ref IModel channel, QueueConfiguration queueConfig, string bindToExchange, string bindMessageKeyPattern)
+        internal void DeclareQueueAndBindExchange(ref string queue, ref IModel channel, QueueConfiguration queueConfig, ref string bindToExchange, string bindMessageKeyPattern)
         {
             DeclareQueue(ref queue, ref channel, queueConfig, true);
             if (string.IsNullOrEmpty(bindToExchange) && !string.IsNullOrEmpty(queueConfig?.BindToExchange))
@@ -127,6 +127,7 @@ namespace Raven.Message.RabbitMQ
             }
             if (!string.IsNullOrEmpty(bindToExchange))
             {
+                DeclareExchange(ref bindToExchange, channel, _brokerConfig.ExchangeConfigs[bindToExchange]);
                 DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
             }
         }
@@ -166,10 +167,9 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
+        private void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
-            DeclareExchange(ref exchange, channel, _brokerConfig.ExchangeConfigs[exchange]);
-            channel.QueueBind(_declaredQueue[queue], _declaredExchange[exchange], routingKey ?? "");
+            channel.QueueBind(queue, exchange, routingKey ?? "");
             _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
         }
 

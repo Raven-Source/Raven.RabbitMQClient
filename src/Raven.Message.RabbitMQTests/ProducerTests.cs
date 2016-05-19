@@ -153,7 +153,7 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(queue);
         }
 
-        private static void DeleteQueue(string queue)
+        public static void DeleteQueue(string queue)
         {
             using (IModel channel = _client.Connection.CreateModel())
             {

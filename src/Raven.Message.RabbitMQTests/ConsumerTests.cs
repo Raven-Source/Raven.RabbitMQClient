@@ -16,7 +16,9 @@ namespace Raven.Message.RabbitMQ.Tests
         static string ReceiveAndCompleteQueue = "ReceiveAndCompleteQueue";
         static string ReceiveListQueue = "ReceiveListQueue";
         static string OnReceiveQueue = "OnReceiveQueue";
-        
+        static string NewObjectQueue = "NewObjectQueue";
+        static string OldObjectQueue = "OldObjectQueue";
+
         static Client _client = null;
 
         [ClassInitialize]
@@ -27,6 +29,8 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(ReceiveAndCompleteQueue);
             DeleteQueue(ReceiveListQueue);
             DeleteQueue(OnReceiveQueue);
+            DeleteQueue(NewObjectQueue);
+            DeleteQueue(OldObjectQueue);
         }
 
         [ClassCleanup]
@@ -71,7 +75,7 @@ namespace Raven.Message.RabbitMQ.Tests
             object o = new object();
             string message = "OnReceiveTest";
             DeclareQueue(OnReceiveQueue);
-            bool success = _client.Consumer.OnReceive<string>(ReceiveAndCompleteQueue, (m, messageKey, messageId, correlationId, args) =>
+            bool success = _client.Consumer.OnReceive<string>(OnReceiveQueue, (m, messageKey, messageId, correlationId, args) =>
             {
                 Assert.AreEqual(message, m);
                 Monitor.PulseAll(o);
@@ -86,11 +90,49 @@ namespace Raven.Message.RabbitMQ.Tests
             AssertMessageNotReceived(OnReceiveQueue);
         }
 
+        [TestMethod()]
+        public void ReceiveNewObject()
+        {
+            DeclareQueue(NewObjectQueue);
+            NewObject obj = new NewObject()
+            {
+                Des = "des",
+                Id = "1111",
+                Name = "hahaha"
+            };
+            SendObject(NewObjectQueue, obj);
+            OldObject received = _client.Consumer.ReceiveAndComplete<OldObject>(NewObjectQueue);
+            Assert.IsNotNull(received);
+            Assert.AreEqual(obj.Name, received.Name);
+        }
+
+        [TestMethod()]
+        public void ReceiveOldObject()
+        {
+            DeclareQueue(OldObjectQueue);
+            OldObject obj = new OldObject()
+            {
+                Name = "hahaha"
+            };
+            SendObject(OldObjectQueue, obj);
+            NewObject received = _client.Consumer.ReceiveAndComplete<NewObject>(OldObjectQueue);
+            Assert.IsNotNull(received);
+            Assert.AreEqual(obj.Name, received.Name);
+        }
+
         private void SendMessage(string queue, string message)
         {
             using (IModel channel = _client.Connection.CreateModel())
             {
                 channel.BasicPublish(exchange: "", routingKey: queue, basicProperties: null, body: SerializerService.Serialize<string>(message, Serializer.SerializerType.MsgPack));
+            }
+        }
+
+        private void SendObject(string queue, object obj)
+        {
+            using (IModel channel = _client.Connection.CreateModel())
+            {
+                channel.BasicPublish(exchange: "", routingKey: queue, basicProperties: null, body: SerializerService.Serialize<object>(obj, Serializer.SerializerType.NewtonsoftJson));
             }
         }
 
@@ -116,6 +158,18 @@ namespace Raven.Message.RabbitMQ.Tests
                 BasicGetResult getResult = channel.BasicGet(queue, true);
                 Assert.IsNull(getResult);
             }
+        }
+
+        public class NewObject : OldObject
+        {
+            public string Id { get; set; }
+
+            public string Des { get; set; }
+        }
+
+        public class OldObject
+        {
+            public string Name { get; set; }
         }
     }
 }

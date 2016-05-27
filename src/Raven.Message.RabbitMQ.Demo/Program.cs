@@ -1,7 +1,10 @@
-﻿using System;
+﻿using RabbitMQ.Client.Events;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Raven.Message.RabbitMQ.Demo
@@ -10,33 +13,41 @@ namespace Raven.Message.RabbitMQ.Demo
     {
         static void Main(string[] args)
         {
+
+            string testqueue = "test1";
             Client.Init();
             Client client = Client.GetInstance("localhost");
 
-            //bool onreceiveSuccess = client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
-            //Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
+            bool onreceiveSuccess = client.Consumer.OnReceive<string>(testqueue, new Abstract.MessageReceived<string>(TestQueueReceived));
+            //onreceiveSuccess = client.Consumer.OnReceive<string>("testqueue", new Abstract.MessageReceived<string>(TestQueueReceived));
+            //onreceiveSuccess = client.Consumer.OnReceive<string>("testqueue", new Abstract.MessageReceived<string>(TestQueueReceived));
+            //onreceiveSuccess = client.Consumer.OnReceive<string>("testqueue", new Abstract.MessageReceived<string>(TestQueueReceived));
+            Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
 
             //bool subscribeSuccess = client.Consumer.Subscribe<string>("testexchange", "testqueue1", "#", Test1QueueReceived);
             //Console.WriteLine("subscribe success:{0}", subscribeSuccess);
 
-            bool sendSuccess = client.Producer.Send<string>("hello world", "testqueue");
-            client.Producer.Send<string>("hello world", "testqueue");
-            client.Producer.Send<string>("hello world", "testqueue");
-            client.Producer.Send<string>("hello world", "testqueue");
-            client.Producer.Send<string>("hello world", "testqueue");
-            Console.WriteLine("send success:{0}", sendSuccess);
+            //bool sendSuccess = client.Producer.Send<string>("hello world", testqueue);
+            //client.Producer.Send<string>("hello world", testqueue);
+            //client.Producer.Send<string>("hello world", "testqueue");
+            //client.Producer.Send<string>("hello world", "testqueue");
+            //client.Producer.Send<string>("hello world", "testqueue");
+            //Console.WriteLine("send success:{0}", sendSuccess);
 
-            bool publishSuccess = client.Producer.Publish<string>("hello world", "testexchange");
-            Console.WriteLine("publish success:{0}", publishSuccess);
+            //bool publishSuccess = client.Producer.Publish<string>("hello world", "testexchange");
+            //Console.WriteLine("publish success:{0}", publishSuccess);
 
             Console.WriteLine("type enter to exit");
             Console.ReadLine();
             Client.Dispose();
         }
-
-        public static bool TestQueueReceived(string message, string messageKey, string messageId, string correlationId)
+        static string _log = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mq.log");
+        public static bool TestQueueReceived(string message, string messageKey, string messageId, string correlationId, BasicDeliverEventArgs args)
         {
+            File.AppendAllText(_log, "message received:" + message);
+            System.Diagnostics.Debug.WriteLine("Thread " + Thread.CurrentThread.ManagedThreadId + " message received");
             Console.WriteLine("TestQueueReceived, {0}", message);
+            Thread.Sleep(300000);
             return true;
         }
 

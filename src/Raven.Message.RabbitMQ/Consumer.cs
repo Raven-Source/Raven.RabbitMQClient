@@ -237,12 +237,13 @@ namespace Raven.Message.RabbitMQ
 
         private void CommonHandler<T>(MessageReceived<T> callback, BasicDeliverEventArgs ea, QueueConfiguration queueConfig, IModel channel)
         {
-            var body = ea.Body;
-            T message = DeserializeMessage<T>(body, queueConfig?.SerializerType);
-            Log.LogDebug("message received", message);
+            T message = default(T);
             bool success = false;
             try
             {
+                var body = ea.Body;
+                message = DeserializeMessage<T>(body, queueConfig?.SerializerType);
+                Log.LogDebug("message received", message);
                 success = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
             }
             catch (Exception ex)

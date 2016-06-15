@@ -32,7 +32,8 @@ namespace Raven.Message.RabbitMQ.Configuration
             fileMap.ExeConfigFilename = file;
             var config = ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
             var configSource = config.GetSection(section) as ClientConfiguration;
-            return configSource;
+            _instance = configSource;
+            return _instance;
         }
 
         public ClientConfiguration()

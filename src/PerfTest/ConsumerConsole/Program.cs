@@ -24,9 +24,9 @@ namespace ConsumerConsole
         {
             Client.Init();
             _client = Client.GetInstance("perftest");
-            
-            //bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
-            bool onreceiveSuccess = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
+
+            bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+            //bool onreceiveSuccess = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
             Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
 
             while (true)

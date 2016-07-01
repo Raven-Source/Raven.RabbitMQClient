@@ -50,7 +50,10 @@ namespace Raven.Message.RabbitMQ
         {
             Init(ClientConfiguration.LoadFrom(configFile, section));
         }
-
+        /// <summary>
+        /// 初始化
+        /// </summary>
+        /// <param name="rabbitMqClientConfig"></param>
         public static void Init(ClientConfiguration rabbitMqClientConfig)
         {
             if (_inited)
@@ -61,23 +64,25 @@ namespace Raven.Message.RabbitMQ
                     return;
                 if (rabbitMqClientConfig == null)
                     rabbitMqClientConfig = ClientConfiguration.Instance;
-                if (rabbitMqClientConfig == null)
-                    throw new ArgumentNullException("rabbitMqClientConfig");
-                string logType = rabbitMqClientConfig.LogType;
-                Log = Activator.CreateInstance(Type.GetType(logType)) as ILog;
-                if (rabbitMqClientConfig.Brokers == null)
-                {
-                    Log.LogError("no broker configed", null, null);
-                    return;
-                }
-                foreach (BrokerConfiguration brokerConfig in rabbitMqClientConfig.Brokers)
-                {
-                    Client instance = new Client(brokerConfig);
-                    _instances.Add(brokerConfig.Name, instance);
-                }
+                LoadConfig(rabbitMqClientConfig);
                 _inited = true;
                 Log.LogDebug("Client init complete", null);
             }
+        }
+        /// <summary>
+        /// 重新加载配置
+        /// </summary>
+        /// <param name="config"></param>
+        public static void Reload(ClientConfiguration config)
+        {
+            if (config == null)
+            {
+                Log.LogError("reload config is null", null, null);
+                return;
+            }
+            if (!_inited)
+                return;
+            ReloadConfig(config);
         }
 
         public static void Dispose()
@@ -91,6 +96,68 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
+        private static void LoadConfig(ClientConfiguration config)
+        {
+            if (config == null)
+                throw new ArgumentNullException("config");
+
+            ClientConfiguration.Instance = config;
+            string logType = config.LogType;
+            Log = Activator.CreateInstance(Type.GetType(logType)) as ILog;
+            if (config.Brokers == null)
+            {
+                Log.LogError("no broker configed", null, null);
+                return;
+            }
+            foreach (BrokerConfiguration brokerConfig in config.Brokers)
+            {
+                CreateClient(brokerConfig);
+            }
+        }
+
+        private static void ReloadConfig(ClientConfiguration config)
+        {
+            ClientConfiguration.Instance = config;
+            string logType = config.LogType;
+            Log = Activator.CreateInstance(Type.GetType(logType)) as ILog;
+            if (config.Brokers == null)
+            {
+                Log.LogError("no broker configed", null, null);
+                return;
+            }
+            foreach (BrokerConfiguration brokerConfig in config.Brokers)
+            {
+                if (_instances.ContainsKey(brokerConfig.Name))
+                {
+                    Client oldClient = _instances[brokerConfig.Name];
+                    if (oldClient.BrokerConfig.Equals(brokerConfig))
+                    {
+                        continue;
+                    }
+                    Client newClient = CreateClient(brokerConfig);
+                    oldClient.Consumer.Recover(newClient.Consumer);
+                }
+                else
+                {
+                    CreateClient(brokerConfig);
+                }
+            }
+        }
+
+        private static Client CreateClient(BrokerConfiguration brokerConfig)
+        {
+            Client client = new Client(brokerConfig);
+            if (_instances.ContainsKey(brokerConfig.Name))
+            {
+                _instances[brokerConfig.Name] = client;
+            }
+            else
+            {
+                _instances.Add(brokerConfig.Name, client);
+            }
+            return client;
+        }
+
         internal Client(BrokerConfiguration brokerConfig)
         {
             BrokerConfig = brokerConfig;
@@ -99,9 +166,23 @@ namespace Raven.Message.RabbitMQ
             Consumer = Factory.CreateConsumer(this, Log, brokerConfig);
         }
 
+        ~Client()
+        {
+            DisposeClient();
+        }
+
+        private bool _disposed = false;
         internal void DisposeClient()
         {
-            Channel.Release();
+            if (_disposed)
+                return;
+            lock (this)
+            {
+                if (_disposed)
+                    return;
+                Channel.Release();
+                _disposed = true;
+            }
         }
     }
 }

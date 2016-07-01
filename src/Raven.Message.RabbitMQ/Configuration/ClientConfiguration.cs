@@ -22,6 +22,10 @@ namespace Raven.Message.RabbitMQ.Configuration
                 }
                 return _instance;
             }
+            set
+            {
+                _instance = value;
+            }
         }
 
         public static ClientConfiguration LoadFrom(string file, string section)
@@ -32,8 +36,7 @@ namespace Raven.Message.RabbitMQ.Configuration
             fileMap.ExeConfigFilename = file;
             var config = ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
             var configSource = config.GetSection(section) as ClientConfiguration;
-            _instance = configSource;
-            return _instance;
+            return configSource;
         }
 
         public ClientConfiguration()

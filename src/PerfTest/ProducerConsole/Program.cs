@@ -70,7 +70,7 @@ namespace ProducerConsole
                 {
                     try
                     {
-                        bool success = Publish();
+                        bool success = SendToQueue();
                         if (!success)
                             failed++;
                     }

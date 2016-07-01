@@ -45,16 +45,10 @@ namespace Raven.Message.RabbitMQ
         {
             if (_factory == null)
             {
-                _factory = new ConnectionFactory() { HostName = BrokerConfig.Host };
-                if (!string.IsNullOrEmpty(BrokerConfig.UserName))
+                _factory = new ConnectionFactory()
                 {
-                    _factory.UserName = BrokerConfig.UserName;
-                    _factory.Password = BrokerConfig.Password;
-                }
-                if (BrokerConfig.Port != null)
-                {
-                    _factory.Port = BrokerConfig.Port.Value;
-                }
+                    Uri = BrokerConfig.Uri
+                };
                 _factory.NetworkRecoveryInterval = TimeSpan.FromSeconds(5); //当连接断开后每隔5秒检测一次
                 _factory.AutomaticRecoveryEnabled = true;//自动恢复连接
             }
@@ -71,11 +65,18 @@ namespace Raven.Message.RabbitMQ
 
         internal void Release()
         {
-            _connection.ConnectionShutdown -= OnConnectionShutdown;
-            _connection.Close();
-            _connection = null;
-            _channelQueue = new ConcurrentQueue<IModel>();
-            _state = State_Release;
+            try
+            {
+                _connection.ConnectionShutdown -= OnConnectionShutdown;
+                _connection.Close();
+                _connection = null;
+                _channelQueue = new ConcurrentQueue<IModel>();
+                _state = State_Release;
+            }
+            catch
+            {
+
+            }
         }
 
         internal IModel GetChannel()

@@ -30,63 +30,79 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// <summary>
         /// 域名
         /// </summary>
-        [ConfigurationProperty("host", IsRequired = true)]
-        public string Host
-        {
-            get
-            {
-                return (string)this["host"];
-            }
-            set
-            {
-                this["host"] = value;
-            }
-        }
+        //[ConfigurationProperty("host", IsRequired = true)]
+        //public string Host
+        //{
+        //    get
+        //    {
+        //        return (string)this["host"];
+        //    }
+        //    set
+        //    {
+        //        this["host"] = value;
+        //    }
+        //}
+        ///// <summary>
+        ///// 用户名
+        ///// </summary>
+        //[ConfigurationProperty("userName")]
+        //public string UserName
+        //{
+        //    get
+        //    {
+        //        return (string)this["userName"];
+        //    }
+        //    set
+        //    {
+        //        this["userName"] = value;
+        //    }
+        //}
+        ///// <summary>
+        ///// 密码
+        ///// </summary>
+        //[ConfigurationProperty("password")]
+        //public string Password
+        //{
+        //    get
+        //    {
+        //        return (string)this["password"];
+        //    }
+        //    set
+        //    {
+        //        this["password"] = value;
+        //    }
+        //}
+        ///// <summary>
+        ///// 端口
+        ///// </summary>
+        //[ConfigurationProperty("port")]
+        //public int? Port
+        //{
+        //    get
+        //    {
+        //        return (int?)this["port"];
+        //    }
+        //    set
+        //    {
+        //        this["port"] = value;
+        //    }
+        //}
         /// <summary>
-        /// 用户名
+        /// AMQP连接字符串，amqp://user:pass@hostName:port/vhost
         /// </summary>
-        [ConfigurationProperty("userName")]
-        public string UserName
+        [ConfigurationProperty("uri", IsRequired = true)]
+        public string Uri
         {
             get
             {
-                return (string)this["userName"];
+                return (string)this["uri"];
             }
             set
             {
-                this["userName"] = value;
+                this["uri"] = value;
             }
         }
-        /// <summary>
-        /// 密码
-        /// </summary>
-        [ConfigurationProperty("password")]
-        public string Password
-        {
-            get
-            {
-                return (string)this["password"];
-            }
-            set
-            {
-                this["password"] = value;
-            }
-        }
-        /// <summary>
-        /// 端口
-        /// </summary>
-        [ConfigurationProperty("port")]
-        public int? Port
-        {
-            get
-            {
-                return (int?)this["port"];
-            }
-            set
-            {
-                this["port"] = value;
-            }
-        }
+
         /// <summary>
         /// 队列配置
         /// </summary>
@@ -118,6 +134,16 @@ namespace Raven.Message.RabbitMQ.Configuration
             {
                 this["exchanges"] = value;
             }
+        }
+
+        public override bool Equals(object compareTo)
+        {
+            if (compareTo == null)
+                return false;
+            BrokerConfiguration obj = compareTo as BrokerConfiguration;
+            if (obj == null)
+                return false;
+            return obj.Name == this.Name && obj.Uri == this.Uri;
         }
     }
 

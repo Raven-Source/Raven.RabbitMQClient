@@ -208,11 +208,6 @@ namespace Raven.Message.RabbitMQ
             Type consumerType = typeof(Consumer);
             foreach (var i in _receiveReplyEvents)
             {
-                Type[] ts = new Type[2];
-                ts[0] = typeof(string);
-                ts[1] = typeof(MessageReceived<,>).MakeGenericType(i.Item2, i.Item3);
-
-
                 MethodInfo method = consumerType.GetMethods().First((f) => f.Name == nameof(OnReceive) && f.GetParameters()[1].ParameterType.GenericTypeArguments.Count() == 2);
                 method = method.MakeGenericMethod(i.Item2, i.Item3);
                 method.Invoke(consumer, new object[2] { i.Item1, i.Item4 });

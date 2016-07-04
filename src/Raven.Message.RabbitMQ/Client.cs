@@ -46,15 +46,25 @@ namespace Raven.Message.RabbitMQ
             Init(ClientConfiguration.Instance);
         }
 
-        public static void Init(string configFile, string section = "ravenRabbitMQ")
+        public static void Init(IBrokerWatcher brokerWatcher)
         {
-            Init(ClientConfiguration.LoadFrom(configFile, section));
+            Init(ClientConfiguration.Instance, brokerWatcher);
+        }
+
+        public static void Init(string configFile, string section = "ravenRabbitMQ", IBrokerWatcher brokerWatcher = null)
+        {
+            Init(ClientConfiguration.LoadFrom(configFile, section), brokerWatcher);
         }
         /// <summary>
         /// 初始化
         /// </summary>
         /// <param name="rabbitMqClientConfig"></param>
         public static void Init(ClientConfiguration rabbitMqClientConfig)
+        {
+            Init(rabbitMqClientConfig, null);
+        }
+
+        public static void Init(ClientConfiguration rabbitMqClientConfig, IBrokerWatcher brokerWatcher)
         {
             if (_inited)
                 return;
@@ -64,11 +74,34 @@ namespace Raven.Message.RabbitMQ
                     return;
                 if (rabbitMqClientConfig == null)
                     rabbitMqClientConfig = ClientConfiguration.Instance;
-                LoadConfig(rabbitMqClientConfig);
+                LoadConfig(rabbitMqClientConfig, brokerWatcher);
+                if (brokerWatcher != null)
+                {
+                    brokerWatcher.BrokerUriChanged += BrokerWatcher_BrokerUriChanged;
+                }
                 _inited = true;
                 Log.LogDebug("Client init complete", null);
             }
         }
+
+        private static void BrokerWatcher_BrokerUriChanged(object sender, BrokerChangeEventArg e)
+        {
+            if (e == null || string.IsNullOrEmpty(e.BrokerName) || string.IsNullOrEmpty(e.BrokerUri))
+            {
+                Log.LogError("broker uri change event arg empty", null, null);
+                return;
+            }
+            if (_instances.ContainsKey(e.BrokerName))
+            {
+                Client oldClient = _instances[e.BrokerName];
+                BrokerConfiguration brokerConfig = oldClient.BrokerConfig;
+                brokerConfig.Uri = e.BrokerUri;
+                Client newClient = CreateClient(brokerConfig);
+                oldClient.Consumer.Recover(newClient.Consumer);
+            }
+            Log.LogDebug(string.Format("broker uri changed, {0} {1}", e.BrokerName, e.BrokerUri), null);
+        }
+
         /// <summary>
         /// 重新加载配置
         /// </summary>
@@ -83,6 +116,7 @@ namespace Raven.Message.RabbitMQ
             if (!_inited)
                 return;
             ReloadConfig(config);
+            Log.LogDebug("reload complete", null);
         }
 
         public static void Dispose()
@@ -96,7 +130,7 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private static void LoadConfig(ClientConfiguration config)
+        private static void LoadConfig(ClientConfiguration config, IBrokerWatcher brokerWatcher)
         {
             if (config == null)
                 throw new ArgumentNullException("config");
@@ -111,6 +145,11 @@ namespace Raven.Message.RabbitMQ
             }
             foreach (BrokerConfiguration brokerConfig in config.Brokers)
             {
+                if (brokerWatcher != null)
+                {
+                    string uri = brokerWatcher.GetBrokerUri(brokerConfig.Name);
+                    brokerConfig.Uri = uri;
+                }
                 CreateClient(brokerConfig);
             }
         }

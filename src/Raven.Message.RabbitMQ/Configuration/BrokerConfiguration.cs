@@ -136,15 +136,15 @@ namespace Raven.Message.RabbitMQ.Configuration
             }
         }
 
-        public override bool Equals(object compareTo)
-        {
-            if (compareTo == null)
-                return false;
-            BrokerConfiguration obj = compareTo as BrokerConfiguration;
-            if (obj == null)
-                return false;
-            return obj.Name == this.Name && obj.Uri == this.Uri;
-        }
+        //public override bool Equals(object compareTo)
+        //{
+        //    if (compareTo == null)
+        //        return false;
+        //    BrokerConfiguration obj = compareTo as BrokerConfiguration;
+        //    if (obj == null)
+        //        return false;
+        //    return obj.Name == this.Name && obj.Uri == this.Uri;
+        //}
     }
 
     public class BrokerConfigurationCollection : EditableConfigurationElementCollection

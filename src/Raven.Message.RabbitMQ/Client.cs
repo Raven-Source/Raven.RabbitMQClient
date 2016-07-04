@@ -130,10 +130,6 @@ namespace Raven.Message.RabbitMQ
                 if (_instances.ContainsKey(brokerConfig.Name))
                 {
                     Client oldClient = _instances[brokerConfig.Name];
-                    if (oldClient.BrokerConfig.Equals(brokerConfig))
-                    {
-                        continue;
-                    }
                     Client newClient = CreateClient(brokerConfig);
                     oldClient.Consumer.Recover(newClient.Consumer);
                 }

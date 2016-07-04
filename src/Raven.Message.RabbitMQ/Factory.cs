@@ -13,10 +13,10 @@ namespace Raven.Message.RabbitMQ
         static Dictionary<string, FacilityManager> _facilities = new Dictionary<string, FacilityManager>();
         static Dictionary<string, ChannelManager> _channels = new Dictionary<string, ChannelManager>();
 
-        internal static Consumer CreateConsumer(Client client, ILog log, BrokerConfiguration brokerConfig)
+        internal static Consumer CreateConsumer(Producer producer, ILog log, BrokerConfiguration brokerConfig)
         {
             Consumer consusmer = new Consumer();
-            consusmer.Client = client;
+            consusmer.Producer = producer;
             consusmer.BrokerConfig = brokerConfig;
             consusmer.Log = log;
             consusmer.Channel = CreateChannel(log, brokerConfig);
@@ -64,6 +64,14 @@ namespace Raven.Message.RabbitMQ
                 }
             }
             return _channels[brokerConfig.Name];
+        }
+
+        internal static void ResetBroker(string brokerName)
+        {
+            if (_channels.ContainsKey(brokerName))
+                _channels.Remove(brokerName);
+            if (_facilities.ContainsKey(brokerName))
+                _facilities.Remove(brokerName);
         }
     }
 }

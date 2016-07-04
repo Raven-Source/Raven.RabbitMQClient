@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Raven.Message.RabbitMQ;
 using Raven.Message.RabbitMQ.Configuration;
+using Raven.Message.RabbitMQTests.Mock;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,15 +17,7 @@ namespace Raven.Message.RabbitMQ.Tests
         [TestMethod()]
         public void ReloadTest()
         {
-            ClientConfiguration config = new ClientConfiguration();
-            config.LogType = "Raven.Message.RabbitMQTests.Log,Raven.Message.RabbitMQTests";
-            config.Brokers = new BrokerConfigurationCollection();
-
-            BrokerConfiguration brokerConfig = new BrokerConfiguration();
-            config.Brokers.Add(brokerConfig);
-
-            brokerConfig.Name = "test";
-            brokerConfig.Uri = "amqp://127.0.0.1";
+            ClientConfiguration config = CreateClientConfig();
 
             string queue = "reloadtestqueue";
             string message = "hello";
@@ -47,21 +40,13 @@ namespace Raven.Message.RabbitMQ.Tests
             Client.GetInstance("test").Producer.Send(message, queue);
             Thread.Sleep(500);
             Assert.IsTrue(receivedAfterReload);
-            
+            //Client.Dispose();
         }
 
         [TestMethod()]
         public void ReloadTest_Subscribe()
         {
-            ClientConfiguration config = new ClientConfiguration();
-            config.LogType = "Raven.Message.RabbitMQTests.Log,Raven.Message.RabbitMQTests";
-            config.Brokers = new BrokerConfigurationCollection();
-
-            BrokerConfiguration brokerConfig = new BrokerConfiguration();
-            config.Brokers.Add(brokerConfig);
-
-            brokerConfig.Name = "test";
-            brokerConfig.Uri = "amqp://127.0.0.1";
+            ClientConfiguration config = CreateClientConfig();
 
             string exchange = "reloadtestexchange";
             string queue = "reloadtestexqueue";
@@ -86,6 +71,49 @@ namespace Raven.Message.RabbitMQ.Tests
             Client.GetInstance("test").Producer.Publish(message, exchange, pattern);
             Thread.Sleep(500);
             Assert.IsTrue(receivedAfterReload);
+            //Client.Dispose();
+        }
+
+        [TestMethod]
+        public void InitTest_BrokerWatcher()
+        {
+            BrokerWatcher watcher = new BrokerWatcher();
+            ClientConfiguration config = CreateClientConfig();
+            config.LogType = "Raven.Message.RabbitMQTests.Mock.Log, Raven.Message.RabbitMQTests";
+            Client.Init(config, watcher);
+
+            string queue = "reloadtestqueue";
+            string message = "hello";
+            bool receivedAfterReload = false;
+            bool success = Client.GetInstance("test").Consumer.OnReceive<string>(queue, (m, messageKey, messageId, correlationId, args) =>
+            {
+                receivedAfterReload = true;
+                return true;
+            });
+
+            watcher.ChangeUri("test", "amqp://guest:1234qwer@121.40.119.230:5672");
+            GC.Collect();
+            Thread.Sleep(100);
+            GC.Collect();
+            Assert.IsTrue(Log.ContainsInfo("client disposed by destructor"));
+            Client.GetInstance("test").Producer.Send(message, queue);
+            Thread.Sleep(500);
+            Assert.IsTrue(receivedAfterReload);
+            //Client.Dispose();
+        }
+
+        private ClientConfiguration CreateClientConfig()
+        {
+            ClientConfiguration config = new ClientConfiguration();
+            config.LogType = "Raven.Message.RabbitMQTests.Log,Raven.Message.RabbitMQTests";
+            config.Brokers = new BrokerConfigurationCollection();
+
+            BrokerConfiguration brokerConfig = new BrokerConfiguration();
+            config.Brokers.Add(brokerConfig);
+
+            brokerConfig.Name = "test";
+            brokerConfig.Uri = "amqp://127.0.0.1";
+            return config;
         }
     }
 }

@@ -91,6 +91,8 @@
     <Compile Include="ClientTests.cs" />
     <Compile Include="ConsumerTests.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="Mock\BrokerWatcher.cs" />
+    <Compile Include="Mock\Log.cs" />
     <Compile Include="ProducerTests.cs" />
     <Compile Include="ProducerTests.Publish.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

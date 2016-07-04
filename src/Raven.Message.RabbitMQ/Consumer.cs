@@ -30,7 +30,7 @@ namespace Raven.Message.RabbitMQ
 
         internal ChannelManager Channel { get; set; }
 
-        internal Client Client { get; set; }
+        internal Producer Producer { get; set; }
 
         internal Consumer()
         {
@@ -327,7 +327,7 @@ namespace Raven.Message.RabbitMQ
                     option = new SendOption();
                     option.CorrelationId = ea.BasicProperties.MessageId;
                 }
-                Client.Producer.SendToBuff<TReply>(reply, ea.BasicProperties.ReplyTo, option);
+                Producer.SendToBuff<TReply>(reply, ea.BasicProperties.ReplyTo, option);
             }
         }
 

@@ -12,6 +12,8 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// </summary>
     public class BrokerConfiguration : ConfigurationElement
     {
+        string _uri = null;
+
         /// <summary>
         /// 别名
         /// </summary>
@@ -95,6 +97,8 @@ namespace Raven.Message.RabbitMQ.Configuration
         {
             get
             {
+                if (!string.IsNullOrEmpty(_uri))
+                    return _uri;
                 return (string)this["uri"];
             }
             set
@@ -134,6 +138,11 @@ namespace Raven.Message.RabbitMQ.Configuration
             {
                 this["exchanges"] = value;
             }
+        }
+
+        public void SetUri(string uri)
+        {
+            _uri = uri;
         }
 
         //public override bool Equals(object compareTo)

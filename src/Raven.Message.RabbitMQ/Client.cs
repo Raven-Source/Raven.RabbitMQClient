@@ -14,11 +14,11 @@ namespace Raven.Message.RabbitMQ
     /// </summary>
     public class Client
     {
-        public Producer Producer { get; }
+        public Producer Producer { get; private set; }
 
-        public Consumer Consumer { get; }
+        public Consumer Consumer { get; private set; }
 
-        public BrokerConfiguration BrokerConfig { get; }
+        public BrokerConfiguration BrokerConfig { get; private set; }
 
         public IConnection Connection
         {
@@ -33,6 +33,7 @@ namespace Raven.Message.RabbitMQ
 
         static Dictionary<string, Client> _instances = new Dictionary<string, Client>();
         static bool _inited = false;
+        static IBrokerWatcher _watcher = null;
 
         public static Client GetInstance(string brokerName)
         {
@@ -77,29 +78,12 @@ namespace Raven.Message.RabbitMQ
                 LoadConfig(rabbitMqClientConfig, brokerWatcher);
                 if (brokerWatcher != null)
                 {
+                    _watcher = brokerWatcher;
                     brokerWatcher.BrokerUriChanged += BrokerWatcher_BrokerUriChanged;
                 }
                 _inited = true;
                 Log.LogDebug("Client init complete", null);
             }
-        }
-
-        private static void BrokerWatcher_BrokerUriChanged(object sender, BrokerChangeEventArg e)
-        {
-            if (e == null || string.IsNullOrEmpty(e.BrokerName) || string.IsNullOrEmpty(e.BrokerUri))
-            {
-                Log.LogError("broker uri change event arg empty", null, null);
-                return;
-            }
-            if (_instances.ContainsKey(e.BrokerName))
-            {
-                Client oldClient = _instances[e.BrokerName];
-                BrokerConfiguration brokerConfig = oldClient.BrokerConfig;
-                brokerConfig.Uri = e.BrokerUri;
-                Client newClient = CreateClient(brokerConfig);
-                oldClient.Consumer.Recover(newClient.Consumer);
-            }
-            Log.LogDebug(string.Format("broker uri changed, {0} {1}", e.BrokerName, e.BrokerUri), null);
         }
 
         /// <summary>
@@ -121,6 +105,11 @@ namespace Raven.Message.RabbitMQ
 
         public static void Dispose()
         {
+            if (_watcher != null)
+            {
+                _watcher.BrokerUriChanged -= BrokerWatcher_BrokerUriChanged;
+                _watcher = null;
+            }
             Dictionary<string, Client> copy = _instances;
             _instances = null;
             foreach (string clientId in copy.Keys)
@@ -148,7 +137,7 @@ namespace Raven.Message.RabbitMQ
                 if (brokerWatcher != null)
                 {
                     string uri = brokerWatcher.GetBrokerUri(brokerConfig.Name);
-                    brokerConfig.Uri = uri;
+                    brokerConfig.SetUri(uri);
                 }
                 CreateClient(brokerConfig);
             }
@@ -169,14 +158,36 @@ namespace Raven.Message.RabbitMQ
                 if (_instances.ContainsKey(brokerConfig.Name))
                 {
                     Client oldClient = _instances[brokerConfig.Name];
+                    Factory.ResetBroker(brokerConfig.Name);
                     Client newClient = CreateClient(brokerConfig);
                     oldClient.Consumer.Recover(newClient.Consumer);
+                    oldClient.PrepareToDispose();
                 }
                 else
                 {
                     CreateClient(brokerConfig);
                 }
             }
+        }
+
+        private static void BrokerWatcher_BrokerUriChanged(object sender, BrokerChangeEventArg e)
+        {
+            if (e == null || string.IsNullOrEmpty(e.BrokerName) || string.IsNullOrEmpty(e.BrokerUri))
+            {
+                Log.LogError("broker uri change event arg empty", null, null);
+                return;
+            }
+            if (_instances.ContainsKey(e.BrokerName))
+            {
+                Client oldClient = _instances[e.BrokerName];
+                BrokerConfiguration brokerConfig = oldClient.BrokerConfig;
+                brokerConfig.SetUri(e.BrokerUri);
+                Factory.ResetBroker(e.BrokerName);
+                Client newClient = CreateClient(brokerConfig);
+                oldClient.Consumer.Recover(newClient.Consumer);
+                oldClient.PrepareToDispose();
+            }
+            Log.LogDebug(string.Format("broker uri changed, {0} {1}", e.BrokerName, e.BrokerUri), null);
         }
 
         private static Client CreateClient(BrokerConfiguration brokerConfig)
@@ -198,12 +209,13 @@ namespace Raven.Message.RabbitMQ
             BrokerConfig = brokerConfig;
             Channel = Factory.CreateChannel(Log, brokerConfig);
             Producer = Factory.CreateProducer(Log, brokerConfig);
-            Consumer = Factory.CreateConsumer(this, Log, brokerConfig);
+            Consumer = Factory.CreateConsumer(Producer, Log, brokerConfig);
         }
 
         ~Client()
         {
             DisposeClient();
+            Log.LogDebug("client disposed by destructor", null);
         }
 
         private bool _disposed = false;
@@ -218,6 +230,12 @@ namespace Raven.Message.RabbitMQ
                 Channel.Release();
                 _disposed = true;
             }
+        }
+
+        internal void PrepareToDispose()
+        {
+            Producer = null;
+            Consumer = null;
         }
     }
 }

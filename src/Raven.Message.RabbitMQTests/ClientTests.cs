@@ -55,11 +55,11 @@ namespace Raven.Message.RabbitMQ.Tests
             bool receivedAfterReload = false;
 
             Client.Init(config);
-            bool success = Client.GetInstance("test").Consumer.Subscribe<string>(exchange, queue, pattern,(m, messageKey, messageId, correlationId, args) =>
-            {
-                receivedAfterReload = true;
-                return true;
-            });
+            bool success = Client.GetInstance("test").Consumer.Subscribe<string>(exchange, queue, pattern, (m, messageKey, messageId, correlationId, args) =>
+             {
+                 receivedAfterReload = true;
+                 return true;
+             });
 
             config.Brokers = new BrokerConfigurationCollection();
             BrokerConfiguration brokerConfig1 = new BrokerConfiguration();
@@ -92,14 +92,51 @@ namespace Raven.Message.RabbitMQ.Tests
             });
 
             watcher.ChangeUri("test", "amqp://guest:1234qwer@121.40.119.230:5672");
-            GC.Collect();
-            Thread.Sleep(100);
-            GC.Collect();
-            Assert.IsTrue(Log.ContainsInfo("client disposed by destructor"));
+            //GC.Collect();
+            //Thread.Sleep(61000);
+            //GC.Collect();
+            //Assert.IsTrue(Log.ContainsInfo("client disposed by destructor"));
             Client.GetInstance("test").Producer.Send(message, queue);
             Thread.Sleep(500);
             Assert.IsTrue(receivedAfterReload);
             //Client.Dispose();
+        }
+
+        [TestMethod]
+        public void OldClientGCTest()
+        {
+            BrokerWatcher watcher = new BrokerWatcher();
+            ClientConfiguration config = CreateClientConfig();
+            config.LogType = "Raven.Message.RabbitMQTests.Mock.Log, Raven.Message.RabbitMQTests";
+            Client.Init(config, watcher);
+            Client oldClient = Client.GetInstance("test");
+
+            string queue = "oldClientGCTest";
+            string message = "hello";
+            bool receivedAfterReload = false;
+            oldClient.Consumer.OnReceive<string>(queue, (m, messageKey, messageId, correlationId, args) =>
+            {
+                receivedAfterReload = true;
+                return true;
+            });
+
+            watcher.ChangeUri("test", "amqp://guest:1234qwer@121.40.119.230:5672");
+
+            oldClient.Producer.Send(message, queue);
+            Thread.Sleep(500);
+            Assert.IsTrue(receivedAfterReload);
+
+            oldClient = null;
+            Thread.Sleep(1000);
+            GC.Collect();
+            Thread.Sleep(1000);
+            Assert.IsFalse(Log.ContainsInfo("client disposed by destructor"), "not disposed");
+
+            Thread.Sleep(120000);
+            GC.Collect();
+            Assert.IsTrue(Log.ContainsInfo("client PrepareToDispose"), "prepare to dispose");
+            Thread.Sleep(1000);
+            Assert.IsTrue(Log.ContainsInfo("client disposed by destructor"), "disposed");
         }
 
         private ClientConfiguration CreateClientConfig()

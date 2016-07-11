@@ -19,6 +19,9 @@ namespace Raven.Message.RabbitMQ
     {
         const int ProducerType_Sender = 0;
         const int ProducerType_Publisher = 1;
+
+        internal event EventHandler ProducerWorked;
+
         internal BrokerConfiguration BrokerConfig { get; set; }
 
         internal ILog Log { get; set; }
@@ -237,6 +240,7 @@ namespace Raven.Message.RabbitMQ
                 channel.ConfirmSelect();
             }
             channel.BasicPublish(exchange: exchange, routingKey: routingKey, basicProperties: properties, body: message);
+            ProducerWork();
             bool confirmed = false;
             if (doConfirm)
             {
@@ -269,7 +273,7 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        BuffProducer GetBuffProducer(string name, int producerType)
+        private BuffProducer GetBuffProducer(string name, int producerType)
         {
             string buffProducerName = GetProducerAction(producerType) + name;
             if (_buffProducerDict == null)
@@ -306,6 +310,11 @@ namespace Raven.Message.RabbitMQ
                 }
             }
             return _buffProducerDict[buffProducerName];
+        }
+
+        private void ProducerWork()
+        {
+            ProducerWorked?.Invoke(this, null);
         }
 
         class BuffProducer

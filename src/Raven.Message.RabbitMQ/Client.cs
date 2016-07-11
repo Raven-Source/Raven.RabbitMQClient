@@ -105,6 +105,7 @@ namespace Raven.Message.RabbitMQ
 
         public static void Dispose()
         {
+            ClientGC.Instance.Dispose();
             if (_watcher != null)
             {
                 _watcher.BrokerUriChanged -= BrokerWatcher_BrokerUriChanged;
@@ -161,7 +162,7 @@ namespace Raven.Message.RabbitMQ
                     Factory.ResetBroker(brokerConfig.Name);
                     Client newClient = CreateClient(brokerConfig);
                     oldClient.Consumer.Recover(newClient.Consumer);
-                    oldClient.PrepareToDispose();
+                    ClientGC.Instance.Add(oldClient);
                 }
                 else
                 {
@@ -185,7 +186,7 @@ namespace Raven.Message.RabbitMQ
                 Factory.ResetBroker(e.BrokerName);
                 Client newClient = CreateClient(brokerConfig);
                 oldClient.Consumer.Recover(newClient.Consumer);
-                oldClient.PrepareToDispose();
+                ClientGC.Instance.Add(oldClient);
             }
             Log.LogDebug(string.Format("broker uri changed, {0} {1}", e.BrokerName, e.BrokerUri), null);
         }
@@ -234,6 +235,7 @@ namespace Raven.Message.RabbitMQ
 
         internal void PrepareToDispose()
         {
+            Log.LogDebug("client PrepareToDispose", null);
             Producer = null;
             Consumer = null;
         }

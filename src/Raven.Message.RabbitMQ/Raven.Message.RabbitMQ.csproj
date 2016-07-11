@@ -52,6 +52,7 @@
     <Compile Include="Abstract\IBrokerWatcher.cs" />
     <Compile Include="Abstract\ReceiveDelegate.cs" />
     <Compile Include="Client.cs" />
+    <Compile Include="ClientGC.cs" />
     <Compile Include="Configuration\BrokerConfiguration.cs" />
     <Compile Include="Configuration\ClientConfiguration.cs" />
     <Compile Include="Configuration\DeclareConfiguration.cs" />

@@ -22,6 +22,9 @@ namespace Raven.Message.RabbitMQ
         List<Tuple<string, string, string, Type, object>> _subEvents = new List<Tuple<string, string, string, Type, object>>();
 
         internal const int DefaultMaxWorker = 10;
+
+        internal event EventHandler ConsumerWorked;
+
         internal BrokerConfiguration BrokerConfig { get; set; }
 
         internal FacilityManager Facility { get; set; }
@@ -65,6 +68,7 @@ namespace Raven.Message.RabbitMQ
                 BasicGetResult getResult = channel.BasicGet(queue, true);
                 if (getResult != null)
                 {
+                    ConsumerWork();
                     result = DeserializeMessage<T>(getResult.Body, queueConfig?.SerializerType);
                 }
                 Channel.ReturnChannel(channel);
@@ -116,6 +120,7 @@ namespace Raven.Message.RabbitMQ
                     BasicGetResult getResult = channel.BasicGet(queue, true);
                     if (getResult != null)
                     {
+                        ConsumerWork();
                         T item = DeserializeMessage<T>(getResult.Body, queueConfig?.SerializerType);
                         if (result == null)
                             result = new List<T>(count);
@@ -263,6 +268,7 @@ namespace Raven.Message.RabbitMQ
                 var consumer = new EventingBasicConsumer(channel);
                 consumer.Received += (model, ea) =>
                 {
+                    ConsumerWork();
                     EventingBasicConsumer c = model as EventingBasicConsumer;
                     IModel ch = c.Model;
                     handler(ea, queueConfig, ch);
@@ -349,6 +355,11 @@ namespace Raven.Message.RabbitMQ
                 noAck = !queueConfig.ConsumerConfig.ConsumeConfirm;
             }
             return noAck;
+        }
+
+        private void ConsumerWork()
+        {
+            ConsumerWorked?.Invoke(this, null);
         }
     }
 }

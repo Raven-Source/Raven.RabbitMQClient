@@ -3,6 +3,7 @@ using Raven.Message.RabbitMQ;
 using Raven.Message.RabbitMQ.Abstract;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -20,18 +21,29 @@ namespace ConsumerConsole
         static long _lastReceived = 0;
         static Dictionary<byte, long> _priorityReceived = new Dictionary<byte, long>(10);
 
+        static string _action = ConfigurationManager.AppSettings["action"];
+
         static void Main(string[] args)
         {
             Client.Init();
             _client = Client.GetInstance("perftest");
-
-            bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+            bool success = false;
+            switch (_action)
+            {
+                case "Receive":
+                    success = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+                    break;
+                case "Subscribe":
+                    success = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
+                    break;
+            }
+            //bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
             //bool onreceiveSuccess = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
-            Console.WriteLine("onreceive success:{0}", onreceiveSuccess);
+            Console.WriteLine("start success:{0}", success);
 
             while (true)
             {
-                Thread.Sleep(1000);
+                Thread.Sleep(10000);
                 PrintStats();
             }
         }
@@ -67,7 +79,7 @@ namespace ConsumerConsole
         static void PrintStats()
         {
             long received = _received;
-            Console.WriteLine($"{DateTime.Now}, totalReceived : {received}, lastSecondReceived : {received - _lastReceived}");
+            Console.WriteLine($"{DateTime.Now}, totalReceived : {received}, lastReceived : {received - _lastReceived}");
             _lastReceived = received;
             Dictionary<byte, long> copy = null;
             lock (_priorityReceived)

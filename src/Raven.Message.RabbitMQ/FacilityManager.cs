@@ -73,13 +73,13 @@ namespace Raven.Message.RabbitMQ
                     {
                         if (parms == null)
                             parms = new Dictionary<string, object>();
-                        parms.Add("x-max-length", queueConfig.MaxLength);
+                        parms.Add("x-max-length", (int)queueConfig.MaxLength.Value);
                     }
                     if (queueConfig.Expiration != null)
                     {
                         if (parms == null)
                             parms = new Dictionary<string, object>();
-                        parms.Add("x-message-ttl", queueConfig.Expiration);
+                        parms.Add("x-message-ttl", (int)queueConfig.Expiration.Value);
                     }
                 }
                 try

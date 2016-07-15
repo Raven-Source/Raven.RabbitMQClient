@@ -274,7 +274,7 @@ namespace Raven.Message.RabbitMQ
                     handler(ea, queueConfig, ch);
                 };
 
-                string result = channel.BasicConsume(queue: queue, noAck: NoAck(queueConfig), consumer: consumer);
+                string result = channel.BasicConsume(queue: queue, noAck: !NeedAck(queueConfig), consumer: consumer);
                 return true;
             }
             catch (Exception ex)
@@ -299,7 +299,7 @@ namespace Raven.Message.RabbitMQ
             {
                 Log.LogError("CommonHandler callback exception", ex, message);
             }
-            if (!NoAck(queueConfig) && success)
+            if (NeedAck(queueConfig) && success)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
@@ -310,7 +310,7 @@ namespace Raven.Message.RabbitMQ
             var body = ea.Body;
             TMessage message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
             Log.LogDebug("message received", message);
-            bool noAck = NoAck(queueConfig);
+            bool needAck = NeedAck(queueConfig);
             TReply reply = default(TReply);
             try
             {
@@ -321,7 +321,7 @@ namespace Raven.Message.RabbitMQ
                 Log.LogError("ReplyHandler callback exception", ex, message);
                 return;
             }
-            if (!noAck)
+            if (needAck)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
@@ -347,14 +347,14 @@ namespace Raven.Message.RabbitMQ
             return SerializerService.Deserialize<T>(message, sType);
         }
 
-        private bool NoAck(QueueConfiguration queueConfig)
+        private bool NeedAck(QueueConfiguration queueConfig)
         {
-            bool noAck = false;
+            bool needAck = false;
             if (queueConfig != null && queueConfig.ConsumerConfig != null)
             {
-                noAck = !queueConfig.ConsumerConfig.ConsumeConfirm;
+                needAck = queueConfig.ConsumerConfig.ConsumeConfirm;
             }
-            return noAck;
+            return needAck;
         }
 
         private void ConsumerWork()

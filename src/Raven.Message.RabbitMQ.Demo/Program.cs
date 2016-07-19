@@ -20,7 +20,7 @@ namespace Raven.Message.RabbitMQ.Demo
 
             Console.WriteLine("{0} init complete", DateTime.Now);
 
-            Client client = Client.GetInstance("testbroker");
+            Client client = Client.GetInstance("localhost");
 
 
 

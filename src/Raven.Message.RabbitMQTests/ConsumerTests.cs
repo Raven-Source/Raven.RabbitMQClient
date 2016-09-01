@@ -18,6 +18,7 @@ namespace Raven.Message.RabbitMQ.Tests
         static string OnReceiveQueue = "OnReceiveQueue";
         static string NewObjectQueue = "NewObjectQueue";
         static string OldObjectQueue = "OldObjectQueue";
+        static string ErrorMessageQueue = "ErrorMessageQueue";
 
         static Client _client = null;
 
@@ -31,6 +32,7 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(OnReceiveQueue);
             DeleteQueue(NewObjectQueue);
             DeleteQueue(OldObjectQueue);
+            DeleteQueue(ErrorMessageQueue);
         }
 
         [ClassCleanup]
@@ -118,6 +120,43 @@ namespace Raven.Message.RabbitMQ.Tests
             NewObject received = _client.Consumer.ReceiveAndComplete<NewObject>(OldObjectQueue);
             Assert.IsNotNull(received);
             Assert.AreEqual(obj.Name, received.Name);
+        }
+
+        [TestMethod()]
+        public void ReceiveErrorMessage()
+        {
+            List<string> messages = new List<string>() { "1", "2", "3", "x", "4", "5", "6","7","8","9","10" };
+            List<string> handled = new List<string>();
+            DeclareQueue(ErrorMessageQueue);
+            int tried = 0;
+            Abstract.MessageReceived<string> callback = (m, messageKey, messageId, correlationId, args) =>
+            {
+                int i = 0;
+                bool s = int.TryParse(m, out i);
+                if (s)
+                {
+                    lock (handled)
+                    {
+                        handled.Add(m);
+                    }
+                }
+                else
+                {
+                    tried++;
+                }
+                if (tried > 10)
+                    return true;
+                return s;
+            };
+            bool success = _client.Consumer.OnReceive<string>(ErrorMessageQueue, callback);
+            success = _client.Consumer.OnReceive<string>(ErrorMessageQueue, callback);
+            Assert.IsTrue(success);
+            foreach (string message in messages)
+            {
+                SendObject(ErrorMessageQueue, message);
+            }
+            Thread.Sleep(1000);
+            Assert.IsTrue(handled.Count == (messages.Count - 1));
         }
 
         private void SendMessage(string queue, string message)

@@ -299,9 +299,16 @@ namespace Raven.Message.RabbitMQ
             {
                 Log.LogError("CommonHandler callback exception", ex, message);
             }
-            if (NeedAck(queueConfig) && success)
+            if (NeedAck(queueConfig))
             {
-                channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                if (success)
+                {
+                    channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                }
+                else
+                {
+                    channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                }
             }
         }
 

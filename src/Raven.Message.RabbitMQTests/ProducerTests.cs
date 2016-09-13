@@ -19,6 +19,7 @@ namespace Raven.Message.RabbitMQ.Tests
         const string ConflictQueue = "conflict";
         const string RedeclareQueue = "redeclare";
         const string PlaceHolderQueue = "placeholder_{_IP}_{_ProcessId}";
+        const string DelayQueue = "DelayQueue";
         static Client _client = null;
 
         [ClassInitialize]
@@ -30,6 +31,7 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(ExistQueue);
             DeleteQueue(ConflictQueue);
             DeleteQueue(RedeclareQueue);
+            DeleteQueue(DelayQueue);
             DeleteExchange(NotExistExchange);
             DeleteExchange(ExistExchange);
             DeleteExchange(ConflictExchange);
@@ -151,6 +153,20 @@ namespace Raven.Message.RabbitMQ.Tests
             string queue = PlaceHolderQueue.Replace("{_IP}", RuntimeEnviroment.IP).Replace("{_ProcessId}", RuntimeEnviroment.ProcessId);
             AssertMessageReceived(queue, message);
             DeleteQueue(queue);
+        }
+        /// <summary>
+        /// 延迟消息测试
+        /// </summary>
+        [TestMethod()]
+        public void SendDelayMessageTest()
+        {
+            string message = DateTime.Now.ToString();
+            bool success = _client.Producer.SendDelay<string>(message, DelayQueue);
+            Assert.IsTrue(success);
+            Thread.Sleep(500);
+            AssertMessageNotReceived(DelayQueue);
+            Thread.Sleep(510);
+            AssertMessageReceived(DelayQueue, message);
         }
 
         public static void DeleteQueue(string queue)

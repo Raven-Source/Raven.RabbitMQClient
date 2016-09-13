@@ -81,5 +81,21 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["maxWorker"] = value;
             }
         }
+
+        /// <summary>
+        /// 消息延迟，单位毫秒
+        /// </summary>
+        [ConfigurationProperty("messageDelay")]
+        public int? MessageDelay
+        {
+            get
+            {
+                return (int?)this["messageDelay"];
+            }
+            set
+            {
+                this["messageDelay"] = value;
+            }
+        }
     }
 }

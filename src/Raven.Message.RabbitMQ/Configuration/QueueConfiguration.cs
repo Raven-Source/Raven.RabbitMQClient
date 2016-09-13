@@ -88,6 +88,16 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// </summary>
         [ConfigurationProperty("bindMessageKeyPattern")]
         public string BindMessageKeyPattern { get; set; }
+        /// <summary>
+        /// 消息拒绝或过期后推送到指定路由
+        /// </summary>
+        [ConfigurationProperty("deadExchange")]
+        public string DeadExchange { get; set; }
+        /// <summary>
+        /// 消息拒绝或过期后路由关键字
+        /// </summary>
+        [ConfigurationProperty("deadMessageKeyPattern")]
+        public string DeadMessageKeyPattern { get; set; }
         #endregion
 
         /// <summary>

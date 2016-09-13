@@ -19,6 +19,7 @@ namespace Raven.Message.RabbitMQ
     {
         const int ProducerType_Sender = 0;
         const int ProducerType_Publisher = 1;
+        static SendOption _delaySendOption = new SendOption { Delay = true };
 
         internal event EventHandler ProducerWorked;
 
@@ -35,7 +36,17 @@ namespace Raven.Message.RabbitMQ
         }
 
         Dictionary<string, BuffProducer> _buffProducerDict = null;
-
+        /// <summary>
+        /// 发送延迟消息
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="message"></param>
+        /// <param name="queue"></param>
+        /// <returns></returns>
+        public bool SendDelay<T>(T message, string queue)
+        {
+            return Send(message, queue, _delaySendOption);
+        }
         /// <summary>
         /// 往指定队列发送消息，消息只会被消费一次
         /// </summary>
@@ -53,7 +64,17 @@ namespace Raven.Message.RabbitMQ
             return SendInternal(message, queue, option, true);
         }
         /// <summary>
-        /// 发送异步方法，往指定队列发送消息，消息只会被消费一次
+        /// 发送延迟消息非阻塞方法
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="message"></param>
+        /// <param name="queue"></param>
+        public void SendDelayToBuff<T>(T message, string queue)
+        {
+            SendToBuff(message, queue, _delaySendOption);
+        }
+        /// <summary>
+        /// 发送非阻塞方法，往指定队列发送消息，消息只会被消费一次
         /// </summary>
         /// <typeparam name="T">消息类型</typeparam>
         /// <param name="message">消息</param>
@@ -122,13 +143,15 @@ namespace Raven.Message.RabbitMQ
                 bool doConfirm = false;
                 int confirmTimeout = 0;
                 bool persistent = false;
+                string sendQueue = queue;
+                int messageDelay = 0;
 
                 string replyTo = null;
                 int priority = 0;
                 string messageId = null;
                 string correlationId = null;
 
-                FindProducerOptions(queueConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent);
+                FindProducerOptions(queueConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent, out messageDelay);
 
                 if (option != null)
                 {
@@ -148,25 +171,44 @@ namespace Raven.Message.RabbitMQ
                     {
                         replyTo = queueConfig?.ProducerConfig.ReplyQueue;
                     }
+                    if (messageDelay > 0 && option.Delay)
+                    {
+                        sendQueue = CreateDelayProxyQueue(ref channel, "", queue, messageDelay);
+                    }
                 }
 
-                bool success = DoSend(body, "", queue, channel, doConfirm, confirmTimeout, persistent, replyTo, priority, messageId, correlationId);
+                bool success = DoSend(body, "", sendQueue, channel, doConfirm, confirmTimeout, persistent, replyTo, priority, messageId, correlationId);
                 if (success)
                 {
-                    Log.LogDebug(string.Format("send success, {0}", queue), message);
+                    Log.LogDebug(string.Format("send success, {0}", sendQueue), message);
                     Channel.ReturnChannel(channel);
                 }
                 else
                 {
-                    Log.LogError(string.Format("send failed, {0}", queue), null, message);
+                    Log.LogError(string.Format("send failed, {0}", sendQueue), null, message);
                 }
                 return success;
             }
             catch (Exception ex)
             {
-                Log.LogError(string.Format("send failed, {0}", queue), ex, message);
+                Log.LogError(string.Format("send exception, {0}", queue), ex, message);
                 return false;
             }
+        }
+
+        private string CreateDelayProxyQueue(ref IModel channel, string exchange, string routeKey, int delay)
+        {
+            string delayQueue = $"delay_{exchange}_{routeKey}_{delay}";
+            QueueConfiguration delayQueueConfig = new QueueConfiguration();
+            delayQueueConfig.Name = delayQueue;
+            delayQueueConfig.Expiration = (uint)delay;
+            delayQueueConfig.Durable = true;
+            delayQueueConfig.RedeclareWhenFailed = true;
+            delayQueueConfig.DeadExchange = string.IsNullOrEmpty(exchange) ? "amq.direct" : exchange;
+            delayQueueConfig.DeadMessageKeyPattern = routeKey;
+            Facility.DeclareQueue(ref delayQueue, ref channel, delayQueueConfig, true);
+            Facility.DeclareBind(channel, routeKey, exchange, routeKey);
+            return delayQueue;
         }
 
         private bool PublishInternal<T>(T message, string exchange, string messageKey, bool sync)
@@ -190,7 +232,8 @@ namespace Raven.Message.RabbitMQ
                 bool doConfirm = false;
                 int confirmTimeout = 0;
                 bool persistent = false;
-                FindProducerOptions(exchangeConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent);
+                int messageDelay = 0;
+                FindProducerOptions(exchangeConfig?.ProducerConfig, sync, out doConfirm, out confirmTimeout, out persistent, out messageDelay);
                 bool success = DoSend(body, exchange, messageKey, channel, doConfirm, confirmTimeout, persistent);
                 if (success)
                 {
@@ -210,8 +253,9 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private void FindProducerOptions(ProducerConfiguration config, bool sync, out bool doConfirm, out int confirmTimeout, out bool persistent)
+        private void FindProducerOptions(ProducerConfiguration config, bool sync, out bool doConfirm, out int confirmTimeout, out bool persistent, out int messageDelay)
         {
+            messageDelay = 0;
             doConfirm = false;
             confirmTimeout = 0;
             persistent = false;
@@ -220,6 +264,7 @@ namespace Raven.Message.RabbitMQ
                 doConfirm = config.SendConfirm && sync;
                 confirmTimeout = config.SendConfirmTimeout;
                 persistent = config.MessagePersistent;
+                messageDelay = config.MessageDelay.Value;
             }
         }
 

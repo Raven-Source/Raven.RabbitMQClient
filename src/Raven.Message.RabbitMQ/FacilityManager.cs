@@ -81,6 +81,18 @@ namespace Raven.Message.RabbitMQ
                             parms = new Dictionary<string, object>();
                         parms.Add("x-message-ttl", (int)queueConfig.Expiration.Value);
                     }
+                    if (queueConfig.DeadExchange != null)
+                    {
+                        if (parms == null)
+                            parms = new Dictionary<string, object>();
+                        parms.Add("x-dead-letter-exchange", queueConfig.DeadExchange);
+                    }
+                    if (queueConfig.DeadMessageKeyPattern != null)
+                    {
+                        if (parms == null)
+                            parms = new Dictionary<string, object>();
+                        parms.Add("x-dead-letter-routing-key", queueConfig.DeadMessageKeyPattern);
+                    }
                 }
                 try
                 {
@@ -130,6 +142,11 @@ namespace Raven.Message.RabbitMQ
                 DeclareExchange(ref bindToExchange, channel, _brokerConfig.ExchangeConfigs[bindToExchange]);
                 DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
             }
+            else if (!string.IsNullOrEmpty(bindMessageKeyPattern))
+            {
+                DeclareQueue(ref bindMessageKeyPattern, ref channel, null, true);
+                DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
+            }
         }
 
         internal void DeclareExchange(ref string exchange, IModel channel, ExchangeConfiguration exchangeConfig)
@@ -167,9 +184,9 @@ namespace Raven.Message.RabbitMQ
             }
         }
 
-        private void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
+        internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
-            channel.QueueBind(queue, exchange, routingKey ?? "");
+            channel.QueueBind(queue, string.IsNullOrEmpty(exchange) ? "amq.direct" : exchange, routingKey ?? "");
             _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
         }
 

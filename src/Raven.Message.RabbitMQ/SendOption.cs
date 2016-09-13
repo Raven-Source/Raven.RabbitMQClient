@@ -24,6 +24,9 @@ namespace Raven.Message.RabbitMQ
         /// 回复队列名
         /// </summary>
         public string ReplyQueue { get; set; }
-
+        /// <summary>
+        /// 是否发送延迟消息
+        /// </summary>
+        public bool Delay { get; set; }
     }
 }

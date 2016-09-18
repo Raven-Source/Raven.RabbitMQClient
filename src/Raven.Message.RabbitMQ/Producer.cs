@@ -19,7 +19,7 @@ namespace Raven.Message.RabbitMQ
     {
         const int ProducerType_Sender = 0;
         const int ProducerType_Publisher = 1;
-        static SendOption _delaySendOption = new SendOption { Delay = true };
+        public static SendOption DelaySendOption = new SendOption { Delay = true };
 
         internal event EventHandler ProducerWorked;
 
@@ -45,7 +45,7 @@ namespace Raven.Message.RabbitMQ
         /// <returns></returns>
         public bool SendDelay<T>(T message, string queue)
         {
-            return Send(message, queue, _delaySendOption);
+            return Send(message, queue, DelaySendOption);
         }
         /// <summary>
         /// 往指定队列发送消息，消息只会被消费一次
@@ -71,7 +71,7 @@ namespace Raven.Message.RabbitMQ
         /// <param name="queue"></param>
         public void SendDelayToBuff<T>(T message, string queue)
         {
-            SendToBuff(message, queue, _delaySendOption);
+            SendToBuff(message, queue, DelaySendOption);
         }
         /// <summary>
         /// 发送非阻塞方法，往指定队列发送消息，消息只会被消费一次
@@ -204,8 +204,8 @@ namespace Raven.Message.RabbitMQ
             delayQueueConfig.Expiration = (uint)delay;
             delayQueueConfig.Durable = true;
             delayQueueConfig.RedeclareWhenFailed = true;
-            delayQueueConfig.DeadExchange = string.IsNullOrEmpty(exchange) ? "amq.direct" : exchange;
-            delayQueueConfig.DeadMessageKeyPattern = routeKey;
+            delayQueueConfig.DeadExchangeInternal = string.IsNullOrEmpty(exchange) ? "amq.direct" : exchange;
+            delayQueueConfig.DeadMessageKeyPatternInternal = routeKey;
             Facility.DeclareQueue(ref delayQueue, ref channel, delayQueueConfig, true);
             Facility.DeclareBind(channel, routeKey, exchange, routeKey);
             return delayQueue;
@@ -264,7 +264,18 @@ namespace Raven.Message.RabbitMQ
                 doConfirm = config.SendConfirm && sync;
                 confirmTimeout = config.SendConfirmTimeout;
                 persistent = config.MessagePersistent;
-                messageDelay = config.MessageDelay.Value;
+                if (!persistent && config.MessagePersistentInternal != null)
+                {
+                    persistent = config.MessagePersistentInternal.Value;
+                }
+                if (config.MessageDelay != null)
+                {
+                    messageDelay = config.MessageDelay.Value;
+                }
+                else if (config.MessageDelayInternal != null)
+                {
+                    messageDelay = config.MessageDelayInternal.Value;
+                }
             }
         }
 

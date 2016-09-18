@@ -97,5 +97,13 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["messageDelay"] = value;
             }
         }
+        /// <summary>
+        /// 是否持久化
+        /// </summary>
+        internal bool? MessagePersistentInternal { get; set; }
+        /// <summary>
+        /// 消息延迟，单位毫秒
+        /// </summary>
+        internal int? MessageDelayInternal { get; set; }
     }
 }

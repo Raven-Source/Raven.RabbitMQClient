@@ -82,22 +82,40 @@ namespace Raven.Message.RabbitMQ.Configuration
         /// 队列需要绑定到交换器
         /// </summary>
         [ConfigurationProperty("bindToExchange")]
-        public string BindToExchange { get; set; }
+        public string BindToExchange
+        {
+            get
+            {
+                return (string)this["bindToExchange"];
+            }
+            set
+            {
+                this["bindToExchange"] = value;
+            }
+        }
         /// <summary>
         /// 绑定消息关键字模式
         /// </summary>
         [ConfigurationProperty("bindMessageKeyPattern")]
-        public string BindMessageKeyPattern { get; set; }
+        public string BindMessageKeyPattern
+        {
+            get
+            {
+                return (string)this["bindMessageKeyPattern"];
+            }
+            set
+            {
+                this["bindMessageKeyPattern"] = value;
+            }
+        }
         /// <summary>
         /// 消息拒绝或过期后推送到指定路由
         /// </summary>
-        [ConfigurationProperty("deadExchange")]
-        public string DeadExchange { get; set; }
+        internal string DeadExchangeInternal { get; set; }
         /// <summary>
         /// 消息拒绝或过期后路由关键字
         /// </summary>
-        [ConfigurationProperty("deadMessageKeyPattern")]
-        public string DeadMessageKeyPattern { get; set; }
+        internal string DeadMessageKeyPatternInternal { get; set; }
         #endregion
 
         /// <summary>
@@ -203,6 +221,21 @@ namespace Raven.Message.RabbitMQ.Configuration
             set
             {
                 this["maxWorker"] = value;
+            }
+        }
+        /// <summary>
+        /// 消息处理失败后重试的间隔，单位毫秒
+        /// </summary>
+        [ConfigurationProperty("retryInterval")]
+        public int? RetryInterval
+        {
+            get
+            {
+                return (int?)this["retryInterval"];
+            }
+            set
+            {
+                this["retryInterval"] = value;
             }
         }
         ///// <summary>

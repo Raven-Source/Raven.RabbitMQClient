@@ -19,6 +19,7 @@ namespace Raven.Message.RabbitMQ
 
         Dictionary<string, string> _declaredQueue;
         Dictionary<string, string> _declaredExchange;
+        Dictionary<string, string> _declaredBind;
 
         internal FacilityManager(ILog log, BrokerConfiguration brokerConfig, ChannelManager channelManager)
         {
@@ -38,6 +39,7 @@ namespace Raven.Message.RabbitMQ
         {
             _declaredQueue = new Dictionary<string, string>(_brokerConfig.QueueConfigs.Count + 4);
             _declaredExchange = new Dictionary<string, string>(_brokerConfig.ExchangeConfigs.Count + 4);
+            _declaredBind = new Dictionary<string, string>();
         }
 
         internal void DeclareQueue(ref string queue, ref IModel channel, QueueConfiguration queueConfig, bool throwException)
@@ -81,17 +83,17 @@ namespace Raven.Message.RabbitMQ
                             parms = new Dictionary<string, object>();
                         parms.Add("x-message-ttl", (int)queueConfig.Expiration.Value);
                     }
-                    if (queueConfig.DeadExchange != null)
+                    if (queueConfig.DeadExchangeInternal != null)
                     {
                         if (parms == null)
                             parms = new Dictionary<string, object>();
-                        parms.Add("x-dead-letter-exchange", queueConfig.DeadExchange);
+                        parms.Add("x-dead-letter-exchange", queueConfig.DeadExchangeInternal);
                     }
-                    if (queueConfig.DeadMessageKeyPattern != null)
+                    if (queueConfig.DeadMessageKeyPatternInternal != null)
                     {
                         if (parms == null)
                             parms = new Dictionary<string, object>();
-                        parms.Add("x-dead-letter-routing-key", queueConfig.DeadMessageKeyPattern);
+                        parms.Add("x-dead-letter-routing-key", queueConfig.DeadMessageKeyPatternInternal);
                     }
                 }
                 try
@@ -186,8 +188,28 @@ namespace Raven.Message.RabbitMQ
 
         internal void DeclareBind(IModel channel, string queue, string exchange, string routingKey)
         {
-            channel.QueueBind(queue, string.IsNullOrEmpty(exchange) ? "amq.direct" : exchange, routingKey ?? "");
-            _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
+            if (string.IsNullOrEmpty(exchange))
+            {
+                exchange = "amq.direct";
+            }
+            if (string.IsNullOrEmpty(routingKey))
+            {
+                routingKey = "";
+            }
+            string bindId = string.Format("{0}_{1}_{2}", queue, exchange, routingKey);
+            if (_declaredBind.ContainsKey(bindId))
+            {
+                return;
+            }
+            lock (bindId)
+            {
+                if (_declaredBind.ContainsKey(bindId))
+                    return;
+                channel.QueueBind(queue, exchange, routingKey);
+                _declaredBind.Add(bindId, bindId);
+                _log.LogDebug($"declare bind, queue:{queue}, exchange:{exchange}, routingKey:{routingKey}", null);
+            }
+
         }
 
         internal bool ExistQueue(string queue, IModel channel)

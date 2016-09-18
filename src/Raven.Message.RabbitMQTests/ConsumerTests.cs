@@ -19,6 +19,7 @@ namespace Raven.Message.RabbitMQ.Tests
         static string NewObjectQueue = "NewObjectQueue";
         static string OldObjectQueue = "OldObjectQueue";
         static string ErrorMessageQueue = "ErrorMessageQueue";
+        static string DelayRetryQueue = "DelayRetryQueue";
 
         static Client _client = null;
 
@@ -33,6 +34,7 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(NewObjectQueue);
             DeleteQueue(OldObjectQueue);
             DeleteQueue(ErrorMessageQueue);
+            DeleteQueue(DelayRetryQueue);
         }
 
         [ClassCleanup]
@@ -157,6 +159,36 @@ namespace Raven.Message.RabbitMQ.Tests
             }
             Thread.Sleep(1000);
             Assert.IsTrue(handled.Count == (messages.Count - 1));
+        }
+        [TestMethod()]
+        public void DelayRetryTest()
+        {
+            string message = "DelayRetryTest";
+            int interval = 100;//间隔100毫秒
+            DeclareQueue(DelayRetryQueue);
+            int count = 0;
+            List<DateTime> recivedTime = new List<DateTime>();
+            bool success = _client.Consumer.OnReceive<string>(DelayRetryQueue, (m, messageKey, messageId, correlationId, args) =>
+            {
+                recivedTime.Add(DateTime.Now);
+                Assert.AreEqual(message, m);
+                if (++count > 2)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            });
+            Assert.IsTrue(success);
+            SendMessage(DelayRetryQueue, message);
+            Thread.Sleep(interval * (count + 1));
+            AssertMessageNotReceived(DelayRetryQueue);
+            for (int i = recivedTime.Count - 1; i > 0; i--)
+            {
+                Assert.IsTrue((recivedTime[i] - recivedTime[i - 1]).TotalMilliseconds >= interval);
+            }
         }
 
         private void SendMessage(string queue, string message)

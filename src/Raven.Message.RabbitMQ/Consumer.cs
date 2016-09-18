@@ -299,11 +299,27 @@ namespace Raven.Message.RabbitMQ
             {
                 Log.LogError("CommonHandler callback exception", ex, message);
             }
-            if (NeedAck(queueConfig))
+            if (!NeedAck(queueConfig))
+                return;
+            if (success)
             {
-                if (success)
+                channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+            }
+            else
+            {
+                if (queueConfig != null && queueConfig.ConsumerConfig != null && queueConfig.ConsumerConfig.RetryInterval != null && queueConfig.ConsumerConfig.RetryInterval.Value > 0)
                 {
-                    channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                    queueConfig.ProducerConfig.MessagePersistentInternal = true;
+                    queueConfig.ProducerConfig.MessageDelayInternal = queueConfig.ConsumerConfig.RetryInterval;
+
+                    if (Producer.SendDelay(message, queueConfig.Name))
+                    {
+                        channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                    }
+                    else
+                    {
+                        channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                    }
                 }
                 else
                 {

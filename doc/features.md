@@ -3,6 +3,7 @@
 - 连接字符串动态更新
 - 同应用所有节点接收消息
 - 延迟消息
+- 消息重试间隔
 
 ##消息行为配置
 服务器、队列、路由、生产特性、消费特性都包含在配置文件中。
@@ -32,10 +33,8 @@
             bindToExchange，绑定到路由
             bindMessageKeyPattern，绑定路由关键字
             serializerType，序列化方式，如果配置此项将覆盖客户端配置中的序列化类型
-            deadExchange，消息拒绝或过期后推送到指定路由
-            deadMessageKeyPattern，消息拒绝或过期后路由关键字
             -->
-          <queue name="testqueue" durable="true" autoDelete="false" maxPriority="5" expiration="1000" maxLength="100" redeclareWhenFailed="false" bindToExchange="exchange1" bindMessageKeyPattern="test" serializerType="NewtonsoftJson" deadExchange="exchange2" deadMessageKeyPattern="test">
+          <queue name="testqueue" durable="true" autoDelete="false" maxPriority="5" expiration="1000" maxLength="100" redeclareWhenFailed="false" bindToExchange="exchange1" bindMessageKeyPattern="test" serializerType="NewtonsoftJson">
             <!--
             队列生产配置
             sendConfirm，是否启用发送确认，默认false
@@ -49,8 +48,9 @@
             队列消费配置
             consumeConfirm，是否启用消费确认，默认false
             maxWorker， 最多同时处理消息，默认10
+			retryInterval，重试消费间隔，如果不配置则马上重试，单位毫秒，注意此配置必须设置consumeConfirm为true才生效
             -->
-            <consumer consumeConfirm="false" maxWorker="10"></consumer>
+            <consumer consumeConfirm="false" maxWorker="10" retryInterval="1000"></consumer>
           </queue>
         </queues>
         <exchanges>
@@ -122,4 +122,11 @@
 调用发送延迟消息方法
 ```
     bool success = _client.Producer.SendDelay<string>(message, DelayQueue);
+```
+##消息重试间隔
+当消息消费失败后，希望过一段间隔再重新消费，只需要配置一下重试间隔，单位毫秒，注意此配置必须设置consumeConfirm为true才生效
+```
+    <queue name="DelayRetryQueue" durable="true">
+		<consumer consumeConfirm="true" retryInterval="1000"></consumer>
+    </queue>
 ```

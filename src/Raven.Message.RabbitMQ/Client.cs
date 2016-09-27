@@ -216,7 +216,8 @@ namespace Raven.Message.RabbitMQ
         ~Client()
         {
             DisposeClient();
-            Log.LogDebug("client disposed by destructor", null);
+            if (Log != null)
+                Log.LogDebug("client disposed by destructor", null);
         }
 
         private bool _disposed = false;
@@ -228,7 +229,8 @@ namespace Raven.Message.RabbitMQ
             {
                 if (_disposed)
                     return;
-                Channel.Release();
+                if (Channel != null)
+                    Channel.Release();
                 _disposed = true;
             }
         }

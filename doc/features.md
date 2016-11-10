@@ -4,6 +4,7 @@
 - 同应用所有节点接收消息
 - 延迟消息
 - 消息重试间隔
+- 消费消息跳过重试
 
 ##消息行为配置
 服务器、队列、路由、生产特性、消费特性都包含在配置文件中。
@@ -49,8 +50,9 @@
             consumeConfirm，是否启用消费确认，默认false
             maxWorker， 最多同时处理消息，默认10
 			retryInterval，重试消费间隔，如果不配置则马上重试，单位毫秒，注意此配置必须设置consumeConfirm为true才生效
+            skipRetry, 跳过重试消费，默认false
             -->
-            <consumer consumeConfirm="false" maxWorker="10" retryInterval="1000"></consumer>
+            <consumer consumeConfirm="false" maxWorker="10" retryInterval="1000" skipRetry="false"></consumer>
           </queue>
         </queues>
         <exchanges>
@@ -128,5 +130,12 @@
 ```
     <queue name="DelayRetryQueue" durable="true">
 		<consumer consumeConfirm="true" retryInterval="1000"></consumer>
+    </queue>
+```
+##消费消息跳过重试
+当消息消费失败后，不希望进行重试，设置skipRetry=true
+```
+    <queue name="SkipRetryQueue" durable="true">
+		<consumer consumeConfirm="true" skipRetry="true"></consumer>
     </queue>
 ```

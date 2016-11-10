@@ -14,7 +14,7 @@ namespace Raven.Message.RabbitMQ.Configuration
     public class QueueConfiguration : DeclareConfiguration
     {
         #region 队列定义
-        
+
         /// <summary>
         /// 支持最大优先级，最小0，最大10，默认0
         /// </summary>
@@ -238,6 +238,19 @@ namespace Raven.Message.RabbitMQ.Configuration
                 this["retryInterval"] = value;
             }
         }
+        [ConfigurationProperty("skipRetry", DefaultValue = false)]
+        public bool SkipRetry
+        {
+            get
+            {
+                return (bool)this["skipRetry"];
+            }
+            set
+            {
+                this["skipRetry"] = value;
+            }
+        }
+
         ///// <summary>
         ///// 消息监听器类型，接口<see cref="Raven.Message.RabbitMQ.Abstract.IMessageListener{T}"/>的实现类，若配置此项，初始化后自动监听队列
         ///// </summary>

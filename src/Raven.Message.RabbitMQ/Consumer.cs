@@ -301,30 +301,28 @@ namespace Raven.Message.RabbitMQ
             }
             if (!NeedAck(queueConfig))
                 return;
-            if (success)
+            if (success || queueConfig.ConsumerConfig.SkipRetry)
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                return;
             }
-            else
+            if (queueConfig.ConsumerConfig.RetryInterval != null && queueConfig.ConsumerConfig.RetryInterval.Value > 0)
             {
-                if (queueConfig != null && queueConfig.ConsumerConfig != null && queueConfig.ConsumerConfig.RetryInterval != null && queueConfig.ConsumerConfig.RetryInterval.Value > 0)
-                {
-                    queueConfig.ProducerConfig.MessagePersistentInternal = true;
-                    queueConfig.ProducerConfig.MessageDelayInternal = queueConfig.ConsumerConfig.RetryInterval;
+                queueConfig.ProducerConfig.MessagePersistentInternal = true;
+                queueConfig.ProducerConfig.MessageDelayInternal = queueConfig.ConsumerConfig.RetryInterval;
 
-                    if (Producer.SendDelay(message, queueConfig.Name))
-                    {
-                        channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
-                    }
-                    else
-                    {
-                        channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
-                    }
+                if (Producer.SendDelay(message, queueConfig.Name))
+                {
+                    channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
                 }
                 else
                 {
                     channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
                 }
+            }
+            else
+            {
+                channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
             }
         }
 

@@ -20,6 +20,7 @@ namespace Raven.Message.RabbitMQ.Tests
         static string OldObjectQueue = "OldObjectQueue";
         static string ErrorMessageQueue = "ErrorMessageQueue";
         static string DelayRetryQueue = "DelayRetryQueue";
+        static string SkipRetryQueue = "SkipRetryQueue";
 
         static Client _client = null;
 
@@ -35,6 +36,7 @@ namespace Raven.Message.RabbitMQ.Tests
             DeleteQueue(OldObjectQueue);
             DeleteQueue(ErrorMessageQueue);
             DeleteQueue(DelayRetryQueue);
+            DeleteQueue(SkipRetryQueue);
         }
 
         [ClassCleanup]
@@ -189,6 +191,22 @@ namespace Raven.Message.RabbitMQ.Tests
             {
                 Assert.IsTrue((recivedTime[i] - recivedTime[i - 1]).TotalMilliseconds >= interval);
             }
+        }
+
+        [TestMethod]
+        public void SkipRetryTest()
+        {
+            string message = "skiptest";
+            DeclareQueue(SkipRetryQueue);
+            int received = 0;
+            bool success = _client.Consumer.OnReceive<string>(SkipRetryQueue, (m, messageKey, messageId, correlationId, args) =>
+            {
+                received++;
+                return false;
+            });
+            SendMessage(SkipRetryQueue, message);
+            Thread.Sleep(500);
+            Assert.IsTrue(received == 1, "received " + received);
         }
 
         private void SendMessage(string queue, string message)

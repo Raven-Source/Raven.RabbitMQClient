@@ -31,10 +31,10 @@ namespace ConsumerConsole
             switch (_action)
             {
                 case "Receive":
-                    success = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);
+                    success = _client.Consumer.OnReceive<string>("testqueue", new MessageReceived<string>(TestQueueReceived));
                     break;
                 case "Subscribe":
-                    success = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", OnSubReceived);
+                    success = _client.Consumer.Subscribe<string>("perfexchange", "sub" + DateTime.Now.Ticks, "test", new MessageReceived<string>(OnSubReceived));
                     break;
             }
             //bool onreceiveSuccess = _client.Consumer.OnReceive<string>("testqueue", TestQueueReceived);

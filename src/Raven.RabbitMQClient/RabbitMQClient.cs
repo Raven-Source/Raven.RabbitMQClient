@@ -138,10 +138,10 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <typeparam name="T"></typeparam>
         /// <param name="queueName">队列名</param>
         /// <returns></returns>
-        public List<T> ReceiveBatch<T>(string queueName, string exchangeName = null)
+        public List<T> ReceiveBatch<T>(string queueName, string exchangeName = null, bool noAck = false)
         {
             List<T> list = new List<T>();
-            List<BasicGetResult> resList = BasicDequeueBatch(exchangeName, queueName);
+            List<BasicGetResult> resList = BasicDequeueBatch(exchangeName, queueName, noAck: noAck);
             foreach (var res in resList)
             {
                 try
@@ -164,10 +164,10 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <typeparam name="T"></typeparam>
         /// <param name="queueName">队列名</param>
         /// <returns></returns>
-        public T ReceiveSingle<T>(string queueName, string exchangeName = null)
+        public T ReceiveSingle<T>(string queueName, string exchangeName = null, bool noAck = false)
         {
             T model = default(T);
-            BasicGetResult res = BasicDequeue(exchangeName, queueName);
+            BasicGetResult res = BasicDequeue(exchangeName, queueName, noAck: noAck);
             if (res != null)
             {
                 try
@@ -256,7 +256,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <param name="queueName"></param>
         /// <param name="exchangeType"></param>
         /// <returns></returns>
-        private List<BasicGetResult> BasicDequeueBatch(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default)
+        private List<BasicGetResult> BasicDequeueBatch(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
         {
             List<BasicGetResult> resList = new List<BasicGetResult>();
             try
@@ -270,13 +270,21 @@ namespace Raven.MessageQueue.WithRabbitMQ
                     }
                     while (true)
                     {
-                        BasicGetResult res = channel.BasicGet(queueName, false);
+                        BasicGetResult res = channel.BasicGet(queueName, noAck);
                         if (res != null)
                         {
                             resList.Add(res);
-                            channel.BasicAck(res.DeliveryTag, false);
+                            if (!noAck)
+                            {
+                                channel.BasicAck(res.DeliveryTag, false);
+                            }
                         }
                         else
+                        {
+                            break;
+                        }
+
+                        if (resList.Count >= 5000)
                         {
                             break;
                         }
@@ -312,7 +320,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <param name="queueName"></param>
         /// <param name="exchangeType"></param>
         /// <returns></returns>
-        private BasicGetResult BasicDequeue(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default)
+        private BasicGetResult BasicDequeue(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
         {
             BasicGetResult res = null;
             //List<BasicGetResult> resList = new List<BasicGetResult>();
@@ -326,10 +334,13 @@ namespace Raven.MessageQueue.WithRabbitMQ
                         channel.ExchangeDeclare(exchangeName, strExchangeType);
                     }
 
-                    res = channel.BasicGet(queueName, false);
+                    res = channel.BasicGet(queueName, noAck);
                     if (res != null)
                     {
-                        channel.BasicAck(res.DeliveryTag, false);
+                        if (!noAck)
+                        {
+                            channel.BasicAck(res.DeliveryTag, false);
+                        }
                     }
                 }
             }

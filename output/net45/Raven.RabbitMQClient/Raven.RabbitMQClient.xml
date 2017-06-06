@@ -131,7 +131,7 @@
             </summary>
             <returns></returns>
         </member>
-        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.ReceiveBatch``1(System.String,System.String)">
+        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.ReceiveBatch``1(System.String,System.String,System.Boolean)">
             <summary>
             批量接收
             </summary>
@@ -139,7 +139,15 @@
             <param name="queueName">队列名</param>
             <returns></returns>
         </member>
-        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.ReceiveSingle``1(System.String,System.String)">
+        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.ReceiveSingle``1(System.String,System.String,System.Boolean)">
+            <summary>
+            批量接收
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="queueName">队列名</param>
+            <returns></returns>
+        </member>
+        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.RegisterReceive``1(System.String,System.Action{``0},System.String,Raven.MessageQueue.WithRabbitMQ.ExchangeType,System.Boolean)">
             <summary>
             批量接收
             </summary>
@@ -164,7 +172,7 @@
             <param name="queueName"></param>
             <param name="callback"></param>
         </member>
-        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.BasicDequeueBatch(System.String,System.String,Raven.MessageQueue.WithRabbitMQ.ExchangeType)">
+        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.BasicDequeueBatch(System.String,System.String,Raven.MessageQueue.WithRabbitMQ.ExchangeType,System.Boolean)">
             <summary>
             
             </summary>
@@ -172,7 +180,7 @@
             <param name="exchangeType"></param>
             <returns></returns>
         </member>
-        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.BasicDequeue(System.String,System.String,Raven.MessageQueue.WithRabbitMQ.ExchangeType)">
+        <member name="M:Raven.MessageQueue.WithRabbitMQ.RabbitMQClient.BasicDequeue(System.String,System.String,Raven.MessageQueue.WithRabbitMQ.ExchangeType,System.Boolean)">
             <summary>
             
             </summary>

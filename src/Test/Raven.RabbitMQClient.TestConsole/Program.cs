@@ -45,27 +45,35 @@ namespace Raven.RabbitMQClient.TestConsole
             do
             {
                 Console.WriteLine("press a key");
+                Console.WriteLine("1.enqueue");
+                Console.WriteLine("2.dequeue");
+                Console.WriteLine("3.publish");
+                Console.WriteLine("4.subscribe");
+                Console.WriteLine("5.RegisterReceive");
                 Console.Write("-->");
                 key = Console.ReadLine();
                 var arr = key.Split(' ');
 
                 switch (arr[0])
                 {
-                    case "enqueue":
+                    case "1":
                         Enqueue();
                         break;
-                    case "dequeue":
+                    case "2":
                         Dequeue();
                         break;
-                    case "publish":
+                    case "3":
                         Publish();
                         break;
-                    case "subscribe":
+                    case "4":
                         //if (arr.Length > 1)
                         //{
                         //    Subscribe(arr[1]);
                         //}
                         Subscribe();
+                        break;
+                    case "5":
+                        RegisterReceive();
                         break;
                 }
 
@@ -80,7 +88,7 @@ namespace Raven.RabbitMQClient.TestConsole
             obj.Name = "dagds大公司gg";
             obj.Time = DateTime.Now;
 
-            Instance.Send("raven_log", obj);
+            Instance.Send("exlog2", obj, false, true);
             Console.WriteLine("Enqueue end");
         }
 
@@ -105,7 +113,7 @@ namespace Raven.RabbitMQClient.TestConsole
 
         static void Dequeue()
         {
-            var userList = Instance.ReceiveBatch<User>("raven_log");
+            var userList = Instance.ReceiveBatch<User>("exlog2");
 
             foreach (var user in userList)
             {
@@ -117,6 +125,14 @@ namespace Raven.RabbitMQClient.TestConsole
             Console.WriteLine("Dequeue end");
         }
 
+
+        static void RegisterReceive()
+        {
+            Instance.RegisterReceive<User>("exlog2", x =>
+            {
+                Console.WriteLine("Receive:{0}", JsonConvert.SerializeObject(x));
+            }, noAck: true);
+        }
     }
 
     public class User

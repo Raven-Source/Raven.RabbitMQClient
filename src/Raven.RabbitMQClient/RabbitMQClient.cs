@@ -182,6 +182,75 @@ namespace Raven.MessageQueue.WithRabbitMQ
             return model;
         }
 
+
+        /// <summary>
+        /// 批量接收
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="queueName">队列名</param>
+        /// <returns></returns>
+        public IModel RegisterReceive<T>(string queueName, Action<T> callback, string exchangeName = "", ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
+        {
+            try
+            {
+                IModel channel = Connection.CreateModel();
+                if (exchangeType != ExchangeType.Default)
+                {
+                    string strExchangeType = ExchangeTypeDataDict.ExchangeTypeDict[exchangeType];
+                    channel.ExchangeDeclare(exchangeName, strExchangeType);
+                }
+
+                var consumer = new EventingBasicConsumer(channel);
+                consumer.Received += (o, res) =>
+                {
+                    try
+                    {
+                        var model = serializer.Deserialize<T>(res.Body);
+                        if (callback != null)
+                        {
+                            callback(model);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        RecordException(ex, res.Body);
+                    }
+                };
+
+                channel.BasicConsume(queueName, noAck, consumer);
+
+                return channel;
+
+                //res = channel.BasicGet(queueName, false);
+                //if (res != null)
+                //{
+                //    channel.BasicAck(res.DeliveryTag, false);
+                //}
+
+            }
+            catch (Exception ex)
+            {
+                if (!Monitor.IsEntered(objLock))
+                {
+                    if (_connection != null)
+                    {
+                        try
+                        {
+                            _connection.Close(100);
+                            _connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    _connection = null;
+                }
+                RecordException(ex, null);
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// 异步入队
         /// </summary>

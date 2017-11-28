@@ -9,13 +9,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
 using RabbitMQ.Client.Events;
+using System.Runtime.CompilerServices;
 
 namespace Raven.MessageQueue.WithRabbitMQ
 {
     /// <summary>
     /// 
     /// </summary>
-    public class RabbitMQClient
+    public class RabbitMQClient : IDisposable
     {
         private IDataSerializer serializer;
 
@@ -61,13 +62,15 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <summary>
         /// 队列工作线程
         /// </summary>
-        private Thread queueWorkThread;
-        private bool isQueueToWrite;
-        private AutoResetEvent resetEvent;
+        //private Thread queueWorkThread;
+        //private bool isQueueToWrite;
+        //private AutoResetEvent resetEvent;
 
-        private System.Collections.Concurrent.ConcurrentQueue<QueueMessage> _queue;
+        //private System.Collections.Queue _queue;
+
+        private System.Collections.Concurrent.BlockingCollection<StrongBox<QueueMessage>> _queue;
         private int _maxQueueCount;
-        private int waitMillisecondsTimeout;
+        //private int waitMillisecondsTimeout;
 
         private IBasicProperties propertiesEmpty = null;
 
@@ -81,8 +84,9 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <param name="maxQueueCount"></param>
         /// <param name="serializerType"></param>
         /// <param name="loger"></param>
+        /// <param name="writeWorkerTaskNumber"></param>
         private RabbitMQClient(string hostName, string userName, string password, int? port, int maxQueueCount
-            , SerializerType serializerType, ILoger loger = null)
+            , SerializerType serializerType, ILoger loger = null, short writeWorkerTaskNumber = 4)
         {
             factory = new ConnectionFactory();
             factory.HostName = hostName;
@@ -98,18 +102,24 @@ namespace Raven.MessageQueue.WithRabbitMQ
             factory.UserName = userName;
 
             serializer = SerializerFactory.Create(serializerType);
-            _queue = new System.Collections.Concurrent.ConcurrentQueue<QueueMessage>();
+            _queue = new System.Collections.Concurrent.BlockingCollection<StrongBox<QueueMessage>>();
+
+            //_queue = new System.Collections.Queue();
             _maxQueueCount = maxQueueCount > 0 ? maxQueueCount : Options.DefaultMaxQueueCount;
 
-            isQueueToWrite = false;
-            resetEvent = new AutoResetEvent(false);
+            //isQueueToWrite = false;
+            //resetEvent = new AutoResetEvent(false);
 
             this.loger = loger;
-            this.waitMillisecondsTimeout = 10000;
+            //this.waitMillisecondsTimeout = 10000;
 
-            queueWorkThread = new Thread(QueueToWrite);
-            queueWorkThread.IsBackground = true;
-            queueWorkThread.Start();
+            //queueWorkThread = new Thread(QueueToWrite);
+            //queueWorkThread.IsBackground = true;
+            //queueWorkThread.Start();
+            for (int i = 0; i < writeWorkerTaskNumber; i++)
+            {
+                Task.Factory.StartNew(QueueToWrite);
+            }
         }
 
         /// <summary>
@@ -120,7 +130,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         public static RabbitMQClient GetInstance(Options options)
         {
             return new RabbitMQClient(options.HostName, options.UserName, options.Password, options.Port, options.MaxQueueCount
-                , options.SerializerType, options.Loger);
+                , options.SerializerType, options.Loger, options.WriteWorkerTaskNumber);
         }
 
         /// <summary>
@@ -137,6 +147,8 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="queueName">队列名</param>
+        /// <param name="exchangeName"></param>
+        /// <param name="noAck"></param>
         /// <returns></returns>
         public List<T> ReceiveBatch<T>(string queueName, string exchangeName = null, bool noAck = false)
         {
@@ -159,10 +171,12 @@ namespace Raven.MessageQueue.WithRabbitMQ
         }
 
         /// <summary>
-        /// 批量接收
+        /// 
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="queueName">队列名</param>
+        /// <param name="queueName"></param>
+        /// <param name="exchangeName"></param>
+        /// <param name="noAck"></param>
         /// <returns></returns>
         public T ReceiveSingle<T>(string queueName, string exchangeName = null, bool noAck = false)
         {
@@ -182,14 +196,17 @@ namespace Raven.MessageQueue.WithRabbitMQ
             return model;
         }
 
-
         /// <summary>
-        /// 批量接收
+        /// 注册Receive
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="queueName">队列名</param>
+        /// <param name="queueName"></param>
+        /// <param name="callback"></param>
+        /// <param name="exchangeName"></param>
+        /// <param name="exchangeType"></param>
+        /// <param name="noAck"></param>
         /// <returns></returns>
-        public IModel RegisterReceive<T>(string queueName, Action<T> callback, string exchangeName = "", ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
+        public IModel RegisterReceive<T>(string queueName, Func<T, bool> callback, string exchangeName = "", ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
         {
             try
             {
@@ -203,17 +220,24 @@ namespace Raven.MessageQueue.WithRabbitMQ
                 var consumer = new EventingBasicConsumer(channel);
                 consumer.Received += (o, res) =>
                 {
+                    bool isOk = false;
                     try
                     {
                         var model = serializer.Deserialize<T>(res.Body);
                         if (callback != null)
                         {
-                            callback(model);
+                            isOk = callback(model);
                         }
+
                     }
                     catch (Exception ex)
                     {
                         RecordException(ex, res.Body);
+                    }
+
+                    if (!noAck && isOk)
+                    {
+                        channel.BasicAck(res.DeliveryTag, false);
                     }
                 };
 
@@ -270,12 +294,49 @@ namespace Raven.MessageQueue.WithRabbitMQ
                 qm.durableQueue = durableQueue;
                 qm.exchangeType = ExchangeType.Default;
 
-                _queue.Enqueue(qm);
+                _queue.Add(new StrongBox<QueueMessage>(qm));
 
-                resetEvent.Set();
+                //lock (_queue)
+                //{
+                //    _queue.Enqueue(qm);
+                //}
+                //resetEvent.Set();
             }
         }
 
+
+        /// <summary>
+        /// 异步入队
+        /// </summary>
+        /// <param name="queueName">队列名</param>
+        /// <param name="dataObj">入队数据</param>
+        /// <param name="persistent">数据是否持久化</param>
+        /// <param name="durableQueue">队列是否持久化</param>
+        public void SendSync(string queueName, object dataObj, bool persistent = false, bool durableQueue = false)
+        {
+            BasicEnqueue("", queueName, dataObj, persistent, durableQueue);
+            //if (_queue.Count < _maxQueueCount)
+            //{
+            //    var qm = new QueueMessage();
+            //    qm.exchangeName = "";
+            //    qm.queueName = queueName;
+            //    qm.data = dataObj;
+            //    qm.persistent = persistent;
+            //    qm.durableQueue = durableQueue;
+            //    qm.exchangeType = ExchangeType.Default;
+
+            //    //_queue.Enqueue(qm);
+
+            //    _queue.Add(qm);
+            //    //resetEvent.Set();
+            //}
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="exchangeName"></param>
+        /// <param name="dataObj"></param>
         public void Publish(string exchangeName, object dataObj)
         {
             if (_queue.Count < _maxQueueCount)
@@ -288,9 +349,14 @@ namespace Raven.MessageQueue.WithRabbitMQ
                 qm.durableQueue = false;
                 qm.exchangeType = ExchangeType.Fanout;
 
-                _queue.Enqueue(qm);
+                //_queue.Enqueue(qm);
 
-                resetEvent.Set();
+                //lock (_queue)
+                //{
+                //    _queue.Enqueue(qm);
+                //}
+                _queue.Add(new StrongBox<QueueMessage>(qm));
+                //resetEvent.Set();
             }
         }
 
@@ -298,7 +364,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// 
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="queueName"></param>
+        /// <param name="exchangeName"></param>
         /// <param name="callback"></param>
         public IModel Subscribe<T>(string exchangeName, Action<T> callback)
         {
@@ -322,8 +388,10 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="exchangeName"></param>
         /// <param name="queueName"></param>
         /// <param name="exchangeType"></param>
+        /// <param name="noAck"></param>
         /// <returns></returns>
         private List<BasicGetResult> BasicDequeueBatch(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
         {
@@ -386,8 +454,10 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="exchangeName"></param>
         /// <param name="queueName"></param>
         /// <param name="exchangeType"></param>
+        /// <param name="noAck"></param>
         /// <returns></returns>
         private BasicGetResult BasicDequeue(string exchangeName, string queueName, ExchangeType exchangeType = ExchangeType.Default, bool noAck = false)
         {
@@ -439,8 +509,8 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="queueName"></param>
-        /// <param name="exchangeType"></param>
+        /// <param name="exchangeName"></param>
+        /// <param name="callback"></param>
         /// <returns></returns>
         private IModel BasicQueueBind(string exchangeName, EventHandler<BasicDeliverEventArgs> callback)
         {
@@ -496,6 +566,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// <summary>
         /// 入队
         /// </summary>
+        /// <param name="exchangeName"></param>
         /// <param name="queueName"></param>
         /// <param name="dataObj"></param>
         /// <param name="persistent">数据是否持久化</param>
@@ -528,7 +599,9 @@ namespace Raven.MessageQueue.WithRabbitMQ
                         properties.Persistent = true;
                     }
                     byte[] data = serializer.Serialize(dataObj);
+                    dataObj = null;
                     channel.BasicPublish(exchangeName, queueName, properties, data);
+
 
                     return true;
                 }
@@ -551,7 +624,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
                     _connection = null;
                 }
                 RecordException(ex, dataObj);
-
+                dataObj = null;
 
                 return false;
                 //throw;
@@ -563,33 +636,90 @@ namespace Raven.MessageQueue.WithRabbitMQ
         /// </summary>
         private void QueueToWrite()
         {
+            //foreach (StrongBox<QueueMessage> item in _queue.GetConsumingEnumerable())
+            //{
+            //    QueueMessage qm = item.Value;
+            //    if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
+            //    {
+            //        loger.LogError(new Exception(), qm);
+            //    }
+
+            //    qm = null;
+            //    item.Value = null;
+            //    //GC.Collect();
+            //}
+
             while (true)
             {
-                resetEvent.Reset();
-                if (_queue.Count > 0)
-                {
-                    isQueueToWrite = true;
-                    QueueMessage qm = null;
-                    while (_queue.TryPeek(out qm))
-                    {
-                        if (BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
-                        {
-                            _queue.TryDequeue(out qm);
-                        }
-                        else
-                        {
-                            break;
-                        }
-                        SpinWait.SpinUntil(() => false, 1);
-                    }
+                StrongBox<QueueMessage> item = _queue.Take();
+                Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+                QueueMessage qm = item.Value;
+                item.Value = null;
 
-                    isQueueToWrite = false;
-                }
+                //if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
+                //{
+                //    loger.LogError(new Exception(), qm);
+                //}
 
-                resetEvent.WaitOne(waitMillisecondsTimeout);
-                //SpinWait.SpinUntil(() => false, waitMillisecondsTimeout);
-                //Thread.Sleep(waitMillisecondsTimeout);
+                qm = null;
+                item = null;
             }
+
+            //while (true)
+            //{
+            //    resetEvent.Reset();
+            //    if (_queue.Count > 0)
+            //    {
+            //        isQueueToWrite = true;
+            //        QueueMessage qm = null;
+            //        do
+            //        {
+            //            lock (_queue)
+            //            {
+            //                try
+            //                {
+            //                    qm = (QueueMessage)_queue.Dequeue();
+            //                }
+            //                catch { }
+            //            }
+            //            if (qm != null)
+            //            {
+            //                if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
+            //                {
+            //                    lock (_queue)
+            //                    {
+            //                        _queue.Enqueue(qm);
+            //                    }
+            //                }
+            //                else
+            //                {
+            //                    break;
+            //                }
+            //            }
+
+            //            //SpinWait.SpinUntil(() => false, 1);
+            //        } while (qm != null);
+
+            //        //while (_queue.Dequeue(out qm))
+            //        //{
+            //        //    if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
+            //        //    {
+            //        //        _queue.Enqueue(qm);
+            //        //    }
+            //        //    else
+            //        //    {
+            //        //        break;
+            //        //    }
+            //        //    SpinWait.SpinUntil(() => false, 1);
+            //        //}
+            //        qm = null;
+            //        isQueueToWrite = false;
+            //    }
+
+            //    resetEvent.WaitOne(waitMillisecondsTimeout);
+            //    //SpinWait.SpinUntil(() => false, waitMillisecondsTimeout);
+            //    //Thread.Sleep(waitMillisecondsTimeout);
+            //}
         }
 
         /// <summary>
@@ -604,6 +734,74 @@ namespace Raven.MessageQueue.WithRabbitMQ
                 loger.LogError(ex, dataObj);
             }
         }
+
+
+        #region Dispose
+
+        private bool disposed = false;
+
+        /// <summary>
+        /// 必须，以备程序员忘记了显式调用Dispose方法
+        /// </summary> 
+        ~RabbitMQClient()
+        {
+            //必须为false
+            Dispose(false);
+        }
+        /// <summary>
+        /// 实现IDisposable中的Dispose方法
+        /// </summary>
+        public void Dispose()
+        {
+            //必须为true
+            Dispose(true);
+            //通知垃圾回收机制不再调用终结器（析构器）
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// 非密封类修饰用protected virtual
+        /// 密封类修饰用private
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.disposed)
+            {
+                // 那么这个方法是被客户直接调用的,那么托管的,和非托管的资源都可以释放
+                if (disposing)
+                {
+                    // 释放 托管资源
+                    if (Connection != null)
+                    {
+                        Connection.Close();
+                        Connection.Dispose();
+                    }
+
+                    if (_queue != null)
+                    {
+                        _queue.Dispose();
+                    }
+
+                    //if (queueWorkThread != null)
+                    //{
+                    //    try
+                    //    {
+                    //        queueWorkThread.Abort();
+                    //        queueWorkThread = null;
+                    //    }
+                    //    catch { }
+                    //}
+                }
+
+                //释放非托管资源
+
+                disposed = true;
+            }
+        }
+
+        #endregion
+
     }
 
     /// <summary>

@@ -30,7 +30,7 @@ namespace Raven.RabbitMQClient.TestConsole
 
         public static MessageQueue.WithRabbitMQ.RabbitMQClient Instance = MessageQueue.WithRabbitMQ.RabbitMQClient.GetInstance(new Options()
         {
-            SerializerType = SerializerType.MsgPack,
+            SerializerType = SerializerType.NewtonsoftJson,
             HostName = hostName,
             Password = password,
             UserName = username,
@@ -131,6 +131,7 @@ namespace Raven.RabbitMQClient.TestConsole
             Instance.RegisterReceive<User>("exlog2", x =>
             {
                 Console.WriteLine("Receive:{0}", JsonConvert.SerializeObject(x));
+                return true;
             }, noAck: true);
         }
     }

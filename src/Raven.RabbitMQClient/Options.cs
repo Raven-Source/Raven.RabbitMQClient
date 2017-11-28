@@ -57,6 +57,14 @@ namespace Raven.MessageQueue.WithRabbitMQ
         ///// </summary>
         //public int WaitMillisecondsTimeout { get; set; }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public short WriteWorkerTaskNumber { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
         public Options()
         {
             MaxQueueCount = DefaultMaxQueueCount;

@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Raven.MessageQueue.WithRabbitMQ
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public static class ExchangeTypeDataDict
     {
         /// <summary>

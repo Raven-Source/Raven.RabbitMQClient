@@ -9,6 +9,21 @@
             
             </summary>
         </member>
+        <member name="F:Raven.Serializer.BasicDataSerializer.encoding">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:Raven.Serializer.BasicDataSerializer.stringType">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="F:Raven.Serializer.BasicDataSerializer.byteArrayType">
+            <summary>
+            
+            </summary>
+        </member>
         <member name="M:Raven.Serializer.BasicDataSerializer.SerializeString(System.String)">
             <summary>
             
@@ -111,10 +126,14 @@
             <summary>
             
             </summary>
-            <typeparam name="T"></typeparam>
             <param name="type"></param>
             <param name="stream"></param>
             <returns></returns>
+        </member>
+        <member name="T:Raven.Serializer.IStringDataSerializer">
+            <summary>
+            
+            </summary>
         </member>
         <member name="M:Raven.Serializer.IStringDataSerializer.SerializeToString(System.Object)">
             <summary>
@@ -151,6 +170,7 @@
             创建类型
             </summary>
             <param name="serializerType"></param>
+            <param name="args"></param>
             <returns></returns>
         </member>
         <member name="M:Raven.Serializer.SerializerFactory.Create(System.String)">
@@ -165,6 +185,7 @@
             创建类型
             </summary>
             <param name="serializerType"></param>
+            <param name="args"></param>
             <returns></returns>
         </member>
         <member name="T:Raven.Serializer.SerializerType">

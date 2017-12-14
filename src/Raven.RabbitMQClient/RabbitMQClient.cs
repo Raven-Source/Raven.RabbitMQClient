@@ -112,9 +112,14 @@ namespace Raven.MessageQueue.WithRabbitMQ
             //queueWorkThread = new Thread(QueueToWrite);
             //queueWorkThread.IsBackground = true;
             //queueWorkThread.Start();
+
+            var scheduler = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, writeWorkerTaskNumber).ExclusiveScheduler;
+            TaskFactory taskFactory = new TaskFactory(scheduler);
+
             for (int i = 0; i < writeWorkerTaskNumber; i++)
             {
-                Task.Factory.StartNew(QueueToWrite);
+                taskFactory.StartNew(QueueToWrite, TaskCreationOptions.LongRunning);
+                //Task.Factory.StartNew(QueueToWrite);
             }
         }
 
@@ -648,14 +653,14 @@ namespace Raven.MessageQueue.WithRabbitMQ
             while (true)
             {
                 StrongBox<QueueMessage> item = _queue.Take();
-                Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+                //Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
                 QueueMessage qm = item.Value;
                 item.Value = null;
 
-                //if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
-                //{
-                //    loger.LogError(new Exception(), qm);
-                //}
+                if (!BasicEnqueue(qm.exchangeName, qm.queueName, qm.data, qm.persistent, qm.durableQueue, qm.exchangeType))
+                {
+                    loger.LogError(new Exception(), qm);
+                }
 
                 qm = null;
                 item = null;

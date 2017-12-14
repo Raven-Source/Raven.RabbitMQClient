@@ -64,6 +64,7 @@ namespace Raven.MessageQueue.WithRabbitMQ
         {
             MaxQueueCount = DefaultMaxQueueCount;
             SerializerType = SerializerType.NewtonsoftJson;
+            WriteWorkerTaskNumber = 4;
         }
     }
 }

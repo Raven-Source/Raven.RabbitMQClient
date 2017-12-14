@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Raven.RabbitMQClient.TestConsole</RootNamespace>
     <AssemblyName>Raven.RabbitMQClient.TestConsole</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -62,14 +62,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Raven.RabbitMQClient\Raven.RabbitMQClient.csproj">
-      <Project>{39a443ab-1751-49bf-9d0a-44802ac6e735}</Project>
-      <Name>Raven.RabbitMQClient</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Raven.RabbitMQClient\Raven.RabbitMQClient.csproj">
+      <Project>{52c7322c-53b9-4611-8642-c636c162136e}</Project>
+      <Name>Raven.RabbitMQClient</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

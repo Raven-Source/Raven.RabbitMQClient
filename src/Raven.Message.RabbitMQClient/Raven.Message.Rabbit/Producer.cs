@@ -126,8 +126,7 @@ namespace Raven.Message.RabbitMQ
         private bool SendInternal<T>(T message, string queue, SendOption option, bool sync)
         {
             QueueConfiguration queueConfig = null;
-            if (_clientConfiguration.QueueConfigs != null)
-                queueConfig = _clientConfiguration.QueueConfigs[queue];
+            _clientConfiguration.QueueConfigs?.TryGetValue(queue,out queueConfig);
             if (queueConfig == null)
             {
                 _log?.LogDebug($"queue config not found, {queue}", message);
@@ -210,10 +209,7 @@ namespace Raven.Message.RabbitMQ
         private bool PublishInternal<T>(T message, string exchange, string messageKey, bool sync)
         {
             ExchangeConfiguration exchangeConfig = null;
-            if (_clientConfiguration.ExchangeConfigurations != null)
-            {
-                exchangeConfig = _clientConfiguration.ExchangeConfigurations[exchange];
-            }
+            _clientConfiguration.ExchangeConfigurations?.TryGetValue(exchange,out exchangeConfig);
             if (exchangeConfig == null)
             {
                 _log?.LogDebug($"exchange config not found, {exchange}", message);

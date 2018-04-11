@@ -11,34 +11,43 @@ namespace Raven.Message.RabbitMQ.FrameworkTest
     {
         static void Main(string[] args)
         {
-            var config = new ClientConfiguration();
-            config.Uri = "amqp://127.0.0.1";
-            config.Name = "rabbit";
-            config.SerializerType = SerializerType.NewtonsoftJson;
-            config.QueueConfigs=new Dictionary<string, QueueConfiguration>();
-            var producerconfig=new ProducerConfiguration();
-            var queue1=new QueueConfiguration("queueA",producerConfig:producerconfig);
-            var queue2=new QueueConfiguration("queueB",producerConfig:producerconfig);
-            var queue3=new QueueConfiguration("queueC",producerConfig:producerconfig);
-            config.QueueConfigs.Add(queue1.Name,queue1);
-            config.QueueConfigs.Add(queue2.Name,queue2);
-            config.QueueConfigs.Add(queue3.Name,queue3);
-            config.ExchangeConfigurations=new Dictionary<string, ExchangeConfiguration>();
-            var exchange=new ExchangeConfiguration("exchange1",producerconfig,exchangeType:ExchangeType.Topic);
-            config.ExchangeConfigurations.Add(exchange.Name,exchange);
+            var config = new ClientConfiguration
+            {
+                Uri = "amqp://127.0.0.1",
+                Name = "rabbit",
+                SerializerType = SerializerType.NewtonsoftJson
+            };
+            //config.QueueConfigs=new Dictionary<string, QueueConfiguration>();
+            //var producerconfig=new ProducerConfiguration();
+            //var queue1=new QueueConfiguration("queueA",producerConfig:producerconfig);
+            //var queue2=new QueueConfiguration("queueB",producerConfig:producerconfig);
+            //var queue3=new QueueConfiguration("queueC",producerConfig:producerconfig);
+            //var queue4=new QueueConfiguration("queueD",producerConfig:producerconfig);
+            //config.QueueConfigs.Add(queue1.Name,queue1);
+            //config.QueueConfigs.Add(queue2.Name,queue2);
+            //config.QueueConfigs.Add(queue3.Name,queue3);
+            //config.QueueConfigs.Add(queue4.Name, queue4);
+            //config.ExchangeConfigurations=new Dictionary<string, ExchangeConfiguration>();
+            //var exchange=new ExchangeConfiguration("exchange1",producerconfig,exchangeType:ExchangeType.Topic);
+            //config.ExchangeConfigurations.Add(exchange.Name,exchange);
             var client = ClientFactory.Create(config);
-            client.Subscribe<string>(queue1.Name, exchange.Name, "*", Recive);
-            client.Subscribe<string>(queue1.Name, exchange.Name, "*", Recive);
-            client.Subscribe<string>(queue2.Name, exchange.Name, "*", Recive);
-            client.Subscribe<string>(queue3.Name, exchange.Name, "*", Recive);
-            //client.Publish("test message","*",exchange.Name);
+            //client.Subscribe<string>("queueA", "exchange1", "*", (msg) => Recive(msg, "first A"));
+            //client.Subscribe<string>("queueA", "exchange1", "*", (msg) => Recive(msg, "second A"));
+            //client.Subscribe<string>("queueB", "exchange1", "*", (msg) => Recive(msg, "first B"));
+            //client.Subscribe<string>("queueC", "exchange1", "*", (msg) => Recive(msg, "first C"));
+            client.Recived<string>("queueD", msg => Recive(msg, "one"));
+            for (int i = 0; i < 10; i++)
+            {
+                //client.Publish("test message"+i, "*", "exchange1");
+                client.Send("test message" + i, "queueD");
+            }
             Console.Read();
             ClientFactory.CloseAll();
         }
 
-        static bool Recive(string message)
+        static bool Recive(string message,string subName)
         {
-            Console.WriteLine(message);
+            Console.WriteLine(subName+":"+message);
             return true;
         }
     }

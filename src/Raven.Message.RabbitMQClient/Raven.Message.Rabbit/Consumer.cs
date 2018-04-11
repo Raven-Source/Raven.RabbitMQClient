@@ -18,11 +18,7 @@ namespace Raven.Message.RabbitMQ
         readonly List<Tuple<string, Type, Type, object>> _receiveReplyEvents = new List<Tuple<string, Type, Type, object>>();
         readonly List<Tuple<string, Type, object>> _receiveEvents = new List<Tuple<string, Type, object>>();
         readonly List<Tuple<string, string, string, Type, object>> _subEvents = new List<Tuple<string, string, string, Type, object>>();
-        private const ushort DefaultMaxWorker = 100;
-
         internal event EventHandler ConsumerWorked;
-
-
         private readonly FacilityManager _facility;
 
         readonly ILog _log;
@@ -76,7 +72,7 @@ namespace Raven.Message.RabbitMQ
             }
             catch (Exception ex)
             {
-                _log?.LogError(string.Format("ReceiveAndComplete failed, {0}", queue), ex, null);
+                _log?.LogError($"ReceiveAndComplete failed, {queue}", ex, null);
                 throw;
             }
             return result;
@@ -156,7 +152,7 @@ namespace Raven.Message.RabbitMQ
         {
             bool success = BindQueueEvent(queue, null, null, (ea, queueConfig, channel) =>
              {
-                 ReplyHandler<TMessage, TReply>(callback, ea, queueConfig, channel);
+                 ReplyHandler(callback, ea, queueConfig, channel);
              });
             if (success)
             {
@@ -214,21 +210,24 @@ namespace Raven.Message.RabbitMQ
             Type consumerType = typeof(Consumer);
             foreach (var i in _receiveReplyEvents)
             {
-                MethodInfo method = consumerType.GetMethods().First((f) => f.Name == nameof(OnReceive) && f.GetParameters()[1].ParameterType.GenericTypeArguments.Count() == 2);
+                MethodInfo method = consumerType.GetMethods().First((f) => f.Name == nameof(OnReceive) && f.GetParameters()[1].ParameterType.GenericTypeArguments.Length == 2);
                 method = method.MakeGenericMethod(i.Item2, i.Item3);
-                method.Invoke(consumer, new object[2] { i.Item1, i.Item4 });
+                method.Invoke(consumer, new [] { i.Item1, i.Item4 });
             }
             foreach (var i in _receiveEvents)
             {
-                MethodInfo method = consumerType.GetMethods().First((f) => f.Name == nameof(OnReceive) && f.GetParameters()[1].ParameterType.GenericTypeArguments.Count() == 1);
+                var method = consumerType.GetMethods().First((f) => f.Name == nameof(OnReceive) && f.GetParameters()[1].ParameterType.GenericTypeArguments.Length == 1);
                 method = method.MakeGenericMethod(i.Item2);
-                method.Invoke(consumer, new object[2] { i.Item1, i.Item3 });
+                method.Invoke(consumer, new [] { i.Item1, i.Item3 });
             }
             foreach (var i in _subEvents)
             {
-                MethodInfo method = consumerType.GetMethod(nameof(Subscribe));
-                method = method.MakeGenericMethod(i.Item4);
-                method.Invoke(consumer, new object[4] { i.Item1, i.Item2, i.Item3, i.Item5 });
+                var method = consumerType.GetMethod(nameof(Subscribe));
+                if (method != null)
+                {
+                    method = method.MakeGenericMethod(i.Item4);
+                    method.Invoke(consumer, new [] {i.Item1, i.Item2, i.Item3, i.Item5});
+                }
             }
         }
 
@@ -242,15 +241,16 @@ namespace Raven.Message.RabbitMQ
             IModel channel = _channel.GetChannel();
             if (channel == null)
             {
-                _log?.LogError(string.Format("BindQueueEvent channel is empty, {0}", queue), null, null);
+                _log?.LogError($"BindQueueEvent channel is empty, {queue}", null, null);
                 return false;
             }
             try
             {
-                QueueConfiguration queueConfig = _clientConfig.QueueConfigs[queue];
+               _clientConfig.QueueConfigs.TryGetValue(queue,out var queueConfig);
                 if (queueConfig == null)
                 {
-                    _log?.LogDebug(string.Format("BindQueueEvent queue config is empty, {0}", queue), null);
+                    _log?.LogDebug($"BindQueueEvent queue config is empty, {queue}", null);
+                    queueConfig=new QueueConfiguration(queue,bindToExchange:exchange,producerConfig:new ProducerConfiguration());
                 }
                 if (!string.IsNullOrEmpty(exchange))
                 {
@@ -260,35 +260,34 @@ namespace Raven.Message.RabbitMQ
                 {
                     _facility.DeclareQueue(ref queue, ref channel, queueConfig, false);
                 }
-                var workerCount = DefaultMaxWorker;
-                if (queueConfig?.MaxWorker != null)
-                {
-                    workerCount = queueConfig.MaxWorker;
-                }
+
+                var workerCount = queueConfig.MaxWorker;
                 channel.BasicQos(prefetchSize: 0, prefetchCount:workerCount, global: false);
                 var consumer = new EventingBasicConsumer(channel);
                 consumer.Received += (model, ea) =>
                 {
                     ConsumerWork();
-                    EventingBasicConsumer c = model as EventingBasicConsumer;
-                    IModel ch = c.Model;
-                    handler(ea, queueConfig, ch);
+                    if (model is EventingBasicConsumer c)
+                    {
+                        var ch = c.Model;
+                        handler(ea, queueConfig, ch);
+                    }
                 };
 
-                string result = channel.BasicConsume(queue: queue, autoAck: !NeedAck(queueConfig), consumer: consumer);
+                channel.BasicConsume(queue: queue, autoAck: !NeedAck(queueConfig), consumer: consumer);
                 return true;
             }
             catch (Exception ex)
             {
-                _log?.LogError(string.Format("BindQueueEvent failed, {0}", queue), ex, null);
+                _log?.LogError($"BindQueueEvent failed, {queue}", ex, null);
                 return false;
             }
         }
 
         private void CommonHandler<T>(MessageReceived<T> callback, BasicDeliverEventArgs ea, QueueConfiguration queueConfig, IModel channel)
         {
-            T message = default(T);
-            bool success = false;
+            var message = default(T);
+            var success = false;
             try
             {
                 var body = ea.Body;
@@ -316,10 +315,10 @@ namespace Raven.Message.RabbitMQ
         private void ReplyHandler<TMessage, TReply>(MessageReceived<TMessage, TReply> callback, BasicDeliverEventArgs ea, QueueConfiguration queueConfig, IModel channel)
         {
             var body = ea.Body;
-            TMessage message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
+            var message = DeserializeMessage<TMessage>(body, queueConfig?.SerializerType);
             _log?.LogDebug("message received", message);
-            bool needAck = NeedAck(queueConfig);
-            TReply reply = default(TReply);
+            var needAck = NeedAck(queueConfig);
+            TReply reply;
             try
             {
                 reply = callback(message, ea.RoutingKey, ea.BasicProperties?.MessageId, ea.BasicProperties?.CorrelationId, ea);
@@ -333,25 +332,20 @@ namespace Raven.Message.RabbitMQ
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             }
-            if (ea.BasicProperties != null && !string.IsNullOrEmpty(ea.BasicProperties.ReplyTo))
+            if (!string.IsNullOrEmpty(ea.BasicProperties?.ReplyTo))
             {
                 SendOption option = null;
                 if (!string.IsNullOrEmpty(ea.BasicProperties.MessageId))
                 {
-                    option = new SendOption();
-                    option.CorrelationId = ea.BasicProperties.MessageId;
+                    option = new SendOption {CorrelationId = ea.BasicProperties.MessageId};
                 }
-                _producer.SendToBuff<TReply>(reply, ea.BasicProperties.ReplyTo, option);
+                _producer.SendToBuff(reply, ea.BasicProperties.ReplyTo, option);
             }
         }
 
         private T DeserializeMessage<T>(byte[] message, SerializerType? serializerType)
         {
-            SerializerType sType;
-            if (serializerType != null)
-                sType = serializerType.Value;
-            else
-                sType = _clientConfig.SerializerType;
+            var sType = serializerType ?? _clientConfig.SerializerType;
             return SerializerService.Deserialize<T>(message, sType);
         }
 

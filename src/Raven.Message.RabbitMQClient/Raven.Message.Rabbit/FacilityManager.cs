@@ -126,7 +126,8 @@ namespace Raven.Message.RabbitMQ
             }
             if (!string.IsNullOrEmpty(bindToExchange))
             {
-                DeclareExchange(ref bindToExchange, channel, _clientConfiguration.ExchangeConfigurations[bindToExchange]);
+                _clientConfiguration.ExchangeConfigurations.TryGetValue(bindToExchange, out var exchange);
+                DeclareExchange(ref bindToExchange, channel, exchange);
                 DeclareBind(channel, queue, bindToExchange, bindMessageKeyPattern);
             }
             else if (!string.IsNullOrEmpty(bindMessageKeyPattern))

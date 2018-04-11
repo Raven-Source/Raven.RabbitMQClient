@@ -14,6 +14,8 @@ namespace Raven.Message.RabbitMQ.Configuration
         public ClientConfiguration()
         {
             SerializerType = SerializerType.MessagePack;
+            QueueConfigs=new Dictionary<string, QueueConfiguration>();
+            ExchangeConfigurations=new Dictionary<string, ExchangeConfiguration>();
         }
     }
 }

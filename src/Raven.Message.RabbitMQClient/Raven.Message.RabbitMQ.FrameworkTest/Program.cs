@@ -27,11 +27,11 @@ namespace Raven.Message.RabbitMQ.FrameworkTest
             var exchange=new ExchangeConfiguration("exchange1",producerconfig,exchangeType:ExchangeType.Topic);
             config.ExchangeConfigurations.Add(exchange.Name,exchange);
             var client = ClientFactory.Create(config);
-            client.Subscribe<string>(queue1.Name,exchange.Name,"*",Recive);
-            client.Subscribe<string>(queue1.Name,exchange.Name,"*",Recive);
-            client.Subscribe<string>(queue2.Name,exchange.Name,"*",Recive);
-            client.Subscribe<string>(queue3.Name,exchange.Name,"*",Recive);
-            client.Publish("test message","*",exchange.Name);
+            client.Subscribe<string>(queue1.Name, exchange.Name, "*", Recive);
+            client.Subscribe<string>(queue1.Name, exchange.Name, "*", Recive);
+            client.Subscribe<string>(queue2.Name, exchange.Name, "*", Recive);
+            client.Subscribe<string>(queue3.Name, exchange.Name, "*", Recive);
+            //client.Publish("test message","*",exchange.Name);
             Console.Read();
             ClientFactory.CloseAll();
         }

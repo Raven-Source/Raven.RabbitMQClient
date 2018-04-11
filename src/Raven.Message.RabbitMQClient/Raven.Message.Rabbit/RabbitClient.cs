@@ -19,26 +19,33 @@ namespace Raven.Message.RabbitMQ
         
 
 
-        public void Send<T>(T message, string queue,  SendOption option = null)
+        public bool Send<T>(T message, string queue,  SendOption option = null)
         {
-            _producer.Send(message, queue, option);
+            return _producer.Send(message, queue, option);
         }
 
-        public void Publish<T>(T message, string queue, string exchange)
+        public bool Publish<T>(T message, string queue, string exchange)
         {
-            _producer.Publish(message, exchange, queue);
+            return _producer.Publish(message, exchange, queue);
         }
 
-        public void Subscribe<T>(string queue, string exchange,string routeKey, Func<T, bool> onRecived)
+        public bool Subscribe<T>(string queue, string exchange,string routeKey, Func<T, bool> onRecived)
         {
             var recived=new MessageReceived<T>((message, key, id, correlationId, args) => onRecived(message));
-            _consumer.Subscribe(exchange, queue, routeKey, recived);
+            return _consumer.Subscribe(exchange, queue, routeKey, recived);
         }
 
-        public void Recived<T>(string queue, Func<T, bool> onRecived)
+        public bool Recived<T>(string queue, Func<T, bool> onRecived)
         {
             var recived = new MessageReceived<T>((message, key, id, correlationId, args) => onRecived(message));
-            _consumer.OnReceive(queue, recived);
+            return _consumer.OnReceive(queue, recived);
+        }
+
+        public bool Recived<T, TReply>(string queue, Func<T, TReply> onRecived)
+        {
+            var reply = new MessageReceived<T, TReply>((message, key, id, correlationId, args) => onRecived(message));
+            return _consumer.OnReceive(queue, reply);
+
         }
 
         public void Dispose()

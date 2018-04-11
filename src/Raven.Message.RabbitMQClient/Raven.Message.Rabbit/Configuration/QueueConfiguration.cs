@@ -7,7 +7,6 @@ namespace Raven.Message.RabbitMQ.Configuration
     /// </summary>
     public class QueueConfiguration
     {
-
         public QueueConfiguration(string name, int maxPriority = 0, uint expiration = 0, uint maxLength = 0,
             bool redeclareWhenFailed = true, string bindToExchange = "",
             string bindMessageKeyPattern = "", string deadMessageKeyPattern = "", SerializerType? serializerType = null,

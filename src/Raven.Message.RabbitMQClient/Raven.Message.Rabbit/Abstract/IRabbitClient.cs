@@ -7,9 +7,10 @@ namespace Raven.Message.RabbitMQ.Abstract
     /// </summary>
     public interface IRabbitClient:IDisposable
     {
-        void Send<T>(T message, string queue, SendOption option = null);
-        void Publish<T>(T message, string queue, string exchange);
-        void Subscribe<T>(string queue, string exchange,string routeKey,Func<T,bool> onRecived);
-        void Recived<T>(string queue,  Func<T, bool> onRecived);
+        bool Send<T>(T message, string queue, SendOption option = null);
+        bool Publish<T>(T message, string queue, string exchange);
+        bool Subscribe<T>(string queue, string exchange,string routeKey,Func<T,bool> onRecived);
+        bool Recived<T>(string queue,  Func<T, bool> onRecived);
+        bool Recived<T, TReply>(string queue, Func<T, TReply> onRecived);
     }
 }

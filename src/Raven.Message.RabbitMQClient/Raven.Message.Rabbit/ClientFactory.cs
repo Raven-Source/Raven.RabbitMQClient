@@ -20,10 +20,20 @@ namespace Raven.Message.RabbitMQ
         public static IRabbitClient Create(ClientConfiguration config,ILog log=null)
         {
             if (Clients.TryGetValue(config.Name, out var client))
+            {
+                if(client.Available)
                 return client;
+                Clients.TryRemove(config.Name, out client);
+            }
             client=new RabbitClient(config,log);
             Clients.TryAdd(config.Name, client);
             return client;
+        }
+
+        public static void DisposeClient(string configName)
+        {
+            if(Clients.TryGetValue(configName,out var client))
+                client.Dispose();
         }
 
         public static void CloseAll()
@@ -39,6 +49,7 @@ namespace Raven.Message.RabbitMQ
                     Console.WriteLine(e);
                 }
             }
+            Clients.Clear();
         }
     }
 }

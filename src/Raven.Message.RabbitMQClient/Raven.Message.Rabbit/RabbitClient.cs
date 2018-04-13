@@ -15,6 +15,7 @@ namespace Raven.Message.RabbitMQ
             var facility=new FacilityManager(log,config, _channel);
             _producer =new Producer(_channel, config,log,facility);
             _consumer=new Consumer(_channel, config,log,_producer,facility);
+            Available = true;
         }
         
 
@@ -48,10 +49,13 @@ namespace Raven.Message.RabbitMQ
 
         }
 
+        public bool Available { get; private set; }
+
         public void Dispose()
         {
             try
             {
+                Available = false;
                 _channel.Dispose();
             }
             catch (Exception e)

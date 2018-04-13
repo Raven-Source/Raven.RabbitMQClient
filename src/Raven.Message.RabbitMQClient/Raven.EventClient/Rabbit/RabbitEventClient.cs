@@ -28,6 +28,7 @@ namespace Raven.EventClient.Rabbit
             return _client.Publish(data, config.RouteKey, config.Exchange);
         }
 
+
         public bool Subscribe<T>(string configId, Func<T, bool> onRecived)
         {
             var config = _configCache.GetConsumeConfig(configId);

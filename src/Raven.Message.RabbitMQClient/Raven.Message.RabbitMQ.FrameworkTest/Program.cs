@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Raven.Message.RabbitMQ.Abstract;
 using Raven.Message.RabbitMQ.Configuration;
@@ -31,23 +34,26 @@ namespace Raven.Message.RabbitMQ.FrameworkTest
             //var exchange=new ExchangeConfiguration("exchange1",producerconfig,exchangeType:ExchangeType.Topic);
             //config.ExchangeConfigurations.Add(exchange.Name,exchange);
             var client = ClientFactory.Create(config);
-            //client.Subscribe<string>("queueA", "exchange1", "*", (msg) => Recive(msg, "first A"));
-            //client.Subscribe<string>("queueA", "exchange1", "*", (msg) => Recive(msg, "second A"));
-            //client.Subscribe<string>("queueB", "exchange1", "*", (msg) => Recive(msg, "first B"));
-            //client.Subscribe<string>("queueC", "exchange1", "*", (msg) => Recive(msg, "first C"));
-            client.Recived<string>("queueD", msg => Recive(msg, "one"));
+            client.Subscribe<string>("queueA", "exchange1", "first", (msg) => Recive(msg, "first A"));
+            client.Subscribe<string>("queueA", "exchange1", "first", (msg) => Recive(msg, "second A"));
+            client.Subscribe<string>("queueB", "exchange1", "first", (msg) => Recive(msg, "first B"));
+            client.Subscribe<string>("queueC", "exchange1", "first", (msg) => Recive(msg, "first C"));
+            client.Recived<string>("queueA", msg => Recive(msg, "one"));
+            Console.WriteLine(DateTime.Now);
             for (int i = 0; i < 10; i++)
             {
-                //client.Publish("test message"+i, "*", "exchange1");
-                client.Send("test message" + i, "queueD");
+                client.Publish("test message" + i, "first", "exchange1");
+                //client.Send("test message" + i, "queueD");
             }
             Console.Read();
             ClientFactory.CloseAll();
         }
+        
+
 
         static bool Recive(string message,string subName)
         {
-            Console.WriteLine(subName+":"+message);
+            Console.WriteLine(DateTime.Now+subName+":"+message);
             return true;
         }
     }

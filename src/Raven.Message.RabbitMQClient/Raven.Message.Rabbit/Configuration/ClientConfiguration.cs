@@ -11,11 +11,18 @@ namespace Raven.Message.RabbitMQ.Configuration
         public Dictionary<string,QueueConfiguration> QueueConfigs { get; set; }
         public Dictionary<string,ExchangeConfiguration> ExchangeConfigurations { get; set; }
 
-        public ClientConfiguration()
+        public ClientConfiguration():this("","")
         {
-            SerializerType = SerializerType.MessagePack;
-            QueueConfigs=new Dictionary<string, QueueConfiguration>();
-            ExchangeConfigurations=new Dictionary<string, ExchangeConfiguration>();
+        }
+
+        public ClientConfiguration(string uri, string name, SerializerType serializerType = SerializerType.NewtonsoftJson)
+        {
+            Uri = uri;
+            Name = name;
+            SerializerType = serializerType;
+            QueueConfigs = new Dictionary<string, QueueConfiguration>();
+            ExchangeConfigurations = new Dictionary<string, ExchangeConfiguration>();
+
         }
     }
 }

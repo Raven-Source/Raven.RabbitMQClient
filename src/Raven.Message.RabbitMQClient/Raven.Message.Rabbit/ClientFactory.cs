@@ -11,6 +11,12 @@ namespace Raven.Message.RabbitMQ
     public static  class ClientFactory
     {
         static readonly ConcurrentDictionary<string,IRabbitClient> Clients=new ConcurrentDictionary<string, IRabbitClient>();
+        /// <summary>
+        /// 创建rabbitmq客户端
+        /// </summary>
+        /// <param name="config">rabbitmq配置</param>
+        /// <param name="log">日志工具</param>
+        /// <returns></returns>
         public static IRabbitClient Create(ClientConfiguration config,ILog log=null)
         {
             if (Clients.TryGetValue(config.Name, out var client))

@@ -152,7 +152,7 @@ namespace Raven.Message.RabbitMQ
                     return;
                 }
                 string exchangeName = exchange;
-                string exchangeType = "topic";
+                string exchangeType =ExchangeType.Direct;
                 bool durable = false;
                 bool autoDelete = false;
                 if (exchangeConfig != null)
